@@ -24,7 +24,6 @@ class TeamMember(Base):
     )
 
     display_order: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        unique=True,
+    Integer,
+    nullable=False,
     )
