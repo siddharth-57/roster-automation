@@ -1,12 +1,10 @@
-// Use the components here
-import TeamMembers from "./components/TeamMembers";
+import RosterSetup from "./components/RosterSetup";
 
 
 function App() {
   return (
-    <TeamMembers />
+    <RosterSetup />
   );
 }
-
 
 export default App;
