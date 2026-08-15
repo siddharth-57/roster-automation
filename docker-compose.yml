@@ -19,8 +19,14 @@ services:
     build: ./backend
     container_name: roster-backend
 
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:password@postgres:5432/roster_db
+
     ports:
       - "8000:8000"
+
+    volumes:
+      - ./backend:/app
 
     depends_on:
       - postgres
