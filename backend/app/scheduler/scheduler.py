@@ -69,7 +69,8 @@ class RosterScheduler:
 
         self._initialize_from_previous_month()
 
-        self._assign_required_non_working_days()
+        # self._assign_required_non_working_days()
+        self._assign_requested_non_working_days()
 
         self._assign_c_shifts()
 
@@ -97,7 +98,7 @@ class RosterScheduler:
         Prepare scheduler state using the previous
         month's last five days.
         """
-
+        
         # Previous month assignments are not copied
         # into the new roster. They are kept separately
         # and used when evaluating the first days.
@@ -128,6 +129,175 @@ class RosterScheduler:
             "C",
             [],
         )
+    
+# Gets all the requirements of the members
+    def _get_requirement_days(
+        self,
+        employee_id: str,
+        shift: str,
+    ) -> list[int]:
+
+        member_requirement = self.context.requirements.get(
+            employee_id
+        )
+
+        if not member_requirement:
+            return []
+
+        return member_requirement.requirements.get(
+            shift,
+            [],
+        )
+  
+    
+# Track how many W/H/L assignments exist
+    def _get_shift_count(
+        self,
+        employee_id: str,
+        shift: str,
+    ) -> int:
+
+        return sum(
+            assigned_shift == shift
+            for assigned_shift
+            in self.roster[employee_id].values()
+        )
+    
+
+    
+# Determine W/H availability
+# This ensures that W/H/L still respect things like: one assignment per day, C → W/H/L, previous-month constraints
+    def _can_assign_non_working_shift(
+        self,
+        employee_id: str,
+        day: int,
+        shift: str,
+    ) -> bool:
+
+        return can_assign_shift(
+            self.roster,
+            employee_id,
+            day,
+            shift,
+            self.context.previous_assignments,
+        )
+    
+# Requested L handling
+    def _try_assign_requested_leave(
+        self,
+        employee_id: str,
+        day: int,
+    ) -> bool:
+
+        if day not in self._get_requirement_days(
+            employee_id,
+            "L",
+        ):
+            return False
+
+        if self._can_assign_non_working_shift(
+            employee_id,
+            day,
+            "L",
+        ):
+            return self._assign(
+                employee_id,
+                day,
+                "L",
+            )
+
+        return False
+
+
+# Requested W handling
+    def _try_assign_requested_w(
+        self,
+        employee_id: str,
+        day: int,
+    ) -> bool:
+
+        if day not in self._get_requirement_days(
+            employee_id,
+            "W",
+        ):
+            return False
+
+        # Priority 1: W
+        if self._can_assign_non_working_shift(
+            employee_id,
+            day,
+            "W",
+        ):
+            return self._assign(
+                employee_id,
+                day,
+                "W",
+            )
+
+        # Priority 2: H
+        if (
+            self._get_shift_count(
+                employee_id,
+                "H",
+            )
+            < self.context.public_holidays
+        ):
+            if self._can_assign_non_working_shift(
+                employee_id,
+                day,
+                "H",
+            ):
+                return self._assign(
+                    employee_id,
+                    day,
+                    "H",
+                )
+
+        # Priority 3: L
+        if self._can_assign_non_working_shift(
+            employee_id,
+            day,
+            "L",
+        ):
+            return self._assign(
+                employee_id,
+                day,
+                "L",
+            )
+
+        return False
+
+
+# Process explicit L/W requirements
+    def _assign_requested_non_working_days(self):
+        for day in range(
+            1,
+            self.context.days_in_month + 1,
+        ):
+
+            for employee_id in self.context.members:
+
+                if day in self._get_requirement_days(
+                    employee_id,
+                    "L",
+                ):
+
+                    if self._try_assign_requested_leave(
+                        employee_id,
+                        day,
+                    ):
+                        continue
+
+                if day in self._get_requirement_days(
+                    employee_id,
+                    "W",
+                ):
+
+                    self._try_assign_requested_w(
+                        employee_id,
+                        day,
+                    )
+
 
 # Determine whether a C request is possible
     def _is_c_requested(
@@ -303,6 +473,8 @@ class RosterScheduler:
                 )
 
         self._validate_minimum_c_distribution()
+    
+    
     
 
     def _ensure_daily_abc_coverage(self):
