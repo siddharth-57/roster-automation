@@ -1,0 +1,73 @@
+.
+├── backend
+│   ├── alembic
+│   │   ├── env.py
+│   │   ├── README
+│   │   ├── script.py.mako
+│   │   └── versions
+│   │       ├── d7a1b24c255b_remove_display_order_uniqueness.py
+│   │       └── e4e759ba2dab_create_roster_database_tables.py
+│   ├── alembic.ini
+│   ├── app
+│   │   ├── api
+│   │   │   ├── __init__.py
+│   │   │   ├── roster.py
+│   │   │   └── team_members.py
+│   │   ├── database.py
+│   │   ├── main.py
+│   │   ├── models
+│   │   │   ├── __init__.py
+│   │   │   ├── roster_assignment.py
+│   │   │   ├── roster.py
+│   │   │   └── team_member.py
+│   │   ├── scheduler
+│   │   │   ├── __init__.py
+│   │   │   ├── config.py
+│   │   │   ├── constraints.py
+│   │   │   ├── context_builder.py
+│   │   │   ├── context.py
+│   │   │   ├── scheduler.py
+│   │   │   └── validator.py
+│   │   ├── schemas
+│   │   │   ├── __init__.py
+│   │   │   ├── roster.py
+│   │   │   └── team_member.py
+│   │   └── services
+│   │       ├── __init__.py
+│   │       ├── previous_roster.py
+│   │       └── roster_validation.py
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── tests
+│       └── test_scheduler_constraints.py
+├── docker-compose.yml
+├── Documentation.docx
+├── frontend
+│   ├── Dockerfile
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── public
+│   │   ├── favicon.svg
+│   │   └── icons.svg
+│   ├── README.md
+│   ├── src
+│   │   ├── App.css
+│   │   ├── App.jsx
+│   │   ├── assets
+│   │   │   ├── hero.png
+│   │   │   ├── react.svg
+│   │   │   └── vite.svg
+│   │   ├── components
+│   │   │   ├── RosterSetup.jsx
+│   │   │   └── TeamMembers.jsx
+│   │   ├── index.css
+│   │   ├── main.jsx
+│   │   └── services
+│   │       ├── roster.js
+│   │       └── teamMembers.js
+│   └── vite.config.js
+└── project_structure.txt
+
+17 directories, 54 files

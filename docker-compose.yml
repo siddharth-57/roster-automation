@@ -21,6 +21,7 @@ services:
 
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:password@postgres:5432/roster_db
+      PYTHONPATH: /app
 
     ports:
       - "8000:8000"
