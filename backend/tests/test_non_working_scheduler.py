@@ -78,3 +78,34 @@ def test_requested_w_is_assigned():
     scheduler._assign_requested_non_working_days()
 
     assert scheduler.roster["E002"][6] == "W"
+
+
+def test_remaining_w_quota():
+
+    context = create_context()
+
+    scheduler = RosterScheduler(context)
+
+    scheduler.roster["E001"][1] = "W"
+    scheduler.roster["E001"][2] = "W"
+
+    remaining = scheduler._get_remaining_w(
+        "E001"
+    )
+
+    assert remaining == 2
+
+
+def test_remaining_h_quota():
+
+    context = create_context()
+
+    scheduler = RosterScheduler(context)
+
+    scheduler.roster["E001"][1] = "H"
+
+    remaining = scheduler._get_remaining_h(
+        "E001"
+    )
+
+    assert remaining == 0
