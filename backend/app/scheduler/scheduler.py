@@ -126,18 +126,9 @@ class RosterScheduler:
     ) -> list[dict]:
         """
         Find existing member requirements on a day that may be
-        blocking the requested shift from being assigned.
+        blocking the requested shift.
 
-        Returns requirement records containing:
-
-            employee_id
-            day
-            requested_shift
-
-        Only requirements explicitly supplied by members are
-        considered here.
-
-        This method does not modify the roster.
+        Requirements that have already been relaxed are ignored.
         """
 
         blocking_requirements = []
@@ -153,6 +144,19 @@ class RosterScheduler:
                 employee_id,
                 current_shift,
             ):
+                continue
+
+            already_relaxed = any(
+                requirement["employee_id"] == employee_id
+                and requirement["day"] == day
+                and requirement["requested_shift"]
+                == current_shift
+                for requirement
+                in self.unfulfilled_requirements
+            )
+            
+# makes sure the relaxed requirement is no longer considered active.
+            if already_relaxed:
                 continue
 
             if current_shift == shift:
@@ -242,6 +246,69 @@ class RosterScheduler:
                 relaxable.append(requirement)
 
         return relaxable
+
+
+# Randomly relax and replace a requirement to fullfill daily shift coverages
+    def _relax_random_requirement(
+        self,
+        day: int,
+        shift: str,
+    ) -> str | None:
+        """
+        Randomly select one relaxable member requirement and
+        replace it with the required coverage shift.
+
+        Returns the employee_id whose requirement was relaxed.
+
+        Returns None when no requirement can be relaxed.
+        """
+
+        relaxable_requirements = (
+            self._get_relaxable_requirements(
+                day,
+                shift,
+            )
+        )
+
+        if not relaxable_requirements:
+            return None
+
+        selected_requirement = random.choice(
+            relaxable_requirements
+        )
+
+        employee_id = selected_requirement["employee_id"]
+        requested_shift = selected_requirement[
+            "requested_shift"
+        ]
+
+        # Remove the member's requested assignment.
+        del self.roster[employee_id][day]
+
+        # Assign the required coverage shift.
+        if not self._assign(
+            employee_id,
+            day,
+            shift,
+        ):
+            # Restore the original requirement if the
+            # assignment unexpectedly fails.
+            self.roster[employee_id][day] = requested_shift
+
+            return None
+        
+# if a members requirement is relaxed we store it using the below method just for record purposes
+        self._record_unfulfilled_requirement(
+            employee_id=employee_id,
+            day=day,
+            requested_shift=requested_shift,
+            reason=(
+                f"Requirement relaxed to satisfy "
+                f"{shift} coverage."
+            ),
+        )
+
+        return employee_id
 
 
 
