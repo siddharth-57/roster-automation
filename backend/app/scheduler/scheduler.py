@@ -169,6 +169,83 @@ class RosterScheduler:
         return blocking_requirements
 
 
+# checks for each and every member with requirements for that day:
+# whether relaxing it's requirements can fullfill daily shift coverage
+    def _can_resolve_coverage_by_relaxing(
+        self,
+        employee_id: str,
+        day: int,
+        requested_shift: str,
+    ) -> bool:
+        """
+        Check whether relaxing the current assignment of a member
+        would make the requested coverage shift assignable.
+
+        This is a simulation only. The roster is restored before
+        returning.
+
+        Returns True when removing the member's current assignment
+        allows the requested shift to be assigned to that member.
+        """
+
+        current_shift = self.roster[employee_id].get(day)
+
+        if current_shift is None:
+            return False
+
+        del self.roster[employee_id][day]
+
+        try:
+            return can_assign_shift(
+                self.roster,
+                employee_id,
+                day,
+                requested_shift,
+                self.context.previous_assignments,
+            )
+        # we are only simulating the relaxation to check
+        finally:
+            self.roster[employee_id][day] = current_shift
+
+
+# This function gives us the viable relaxations which can be assigned a shift to fullfill the daily shift coverage
+    def _get_relaxable_requirements(
+        self,
+        day: int,
+        shift: str,
+    ) -> list[dict]:
+        """
+        Return member requirements that can be relaxed to make
+        the requested shift assignable.
+
+        This method does not modify the roster.
+        """
+
+        blocking_requirements = (
+            self._get_blocking_requirements(
+                day,
+                shift,
+            )
+        )
+
+        relaxable = []
+
+        for requirement in blocking_requirements:
+
+            employee_id = requirement["employee_id"]
+
+            if self._can_resolve_coverage_by_relaxing(
+                employee_id,
+                day,
+                shift,
+            ):
+                relaxable.append(requirement)
+
+        return relaxable
+
+
+
+
 
 # Track unfulfilled requirements
     def _record_unfulfilled_requirement(
