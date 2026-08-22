@@ -1,3 +1,5 @@
+# Tests the requirement loding phase (tests the requirements given by members are being stored as it is even if they break the roster constraints for the time being)
+
 from app.scheduler.context import (
     MemberRequirement,
     RosterContext,

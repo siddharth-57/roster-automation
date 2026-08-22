@@ -1,5 +1,4 @@
-# tests the function to find out which shifts are yet to be assigned for any specific day
-# does daily shift coverage detection
+# test to find out which candidates can be assigned shifts to cover daily coverage
 
 from app.scheduler.context import (
     MemberRequirement,
@@ -13,7 +12,6 @@ def create_context():
         "E001",
         "E002",
         "E003",
-        "E004",
     ]
 
     requirements = {
@@ -44,17 +42,6 @@ def create_context():
             requirements={
                 "A": [],
                 "B": [],
-                "C": [1],
-                "G": [],
-                "L": [],
-                "W": [],
-            },
-        ),
-        "E004": MemberRequirement(
-            employee_id="E004",
-            requirements={
-                "A": [],
-                "B": [],
                 "C": [],
                 "G": [],
                 "L": [],
@@ -76,7 +63,7 @@ def create_context():
     )
 
 
-def test_missing_daily_coverage():
+def test_only_unassigned_members_are_candidates():
 
     context = create_context()
 
@@ -84,34 +71,25 @@ def test_missing_daily_coverage():
 
     scheduler._assign_member_requirements()
 
-    assert scheduler._get_missing_daily_coverage(1) == []
+    candidates = scheduler._get_valid_coverage_candidates(
+        day=1,
+        shift="C",
+    )
+
+    assert candidates == ["E003"]
 
 
-def test_missing_c_coverage():
+def test_assigned_member_is_not_candidate():
 
     context = create_context()
-
-    context.requirements["E003"].requirements["C"] = []
 
     scheduler = RosterScheduler(context)
 
     scheduler._assign_member_requirements()
 
-    assert scheduler._get_missing_daily_coverage(1) == ["C"]
+    candidates = scheduler._get_valid_coverage_candidates(
+        day=1,
+        shift="A",
+    )
 
-
-def test_missing_a_and_b_coverage():
-
-    context = create_context()
-
-    context.requirements["E001"].requirements["A"] = []
-    context.requirements["E002"].requirements["B"] = []
-
-    scheduler = RosterScheduler(context)
-
-    scheduler._assign_member_requirements()
-
-    assert scheduler._get_missing_daily_coverage(1) == [
-        "A",
-        "B",
-    ]
+    assert candidates == ["E003"]

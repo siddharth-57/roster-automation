@@ -1,6 +1,4 @@
-# tests the function to find out which shifts are yet to be assigned for any specific day
-# does daily shift coverage detection
-
+# returns all the people who have posted some requirement on a specific day to find out whose requirement can be relaxed 
 from app.scheduler.context import (
     MemberRequirement,
     RosterContext,
@@ -14,37 +12,38 @@ def create_context():
         "E002",
         "E003",
         "E004",
+        "E005",
     ]
 
     requirements = {
         "E001": MemberRequirement(
             employee_id="E001",
             requirements={
-                "A": [1],
+                "A": [],
                 "B": [],
                 "C": [],
                 "G": [],
                 "L": [],
-                "W": [],
+                "W": [1],
             },
         ),
         "E002": MemberRequirement(
             employee_id="E002",
             requirements={
                 "A": [],
-                "B": [1],
+                "B": [],
                 "C": [],
                 "G": [],
                 "L": [],
-                "W": [],
+                "W": [1],
             },
         ),
         "E003": MemberRequirement(
             employee_id="E003",
             requirements={
-                "A": [],
+                "A": [1],
                 "B": [],
-                "C": [1],
+                "C": [],
                 "G": [],
                 "L": [],
                 "W": [],
@@ -55,6 +54,17 @@ def create_context():
             requirements={
                 "A": [],
                 "B": [],
+                "C": [],
+                "G": [],
+                "L": [],
+                "W": [1],
+            },
+        ),
+        "E005": MemberRequirement(
+            employee_id="E005",
+            requirements={
+                "A": [],
+                "B": [1],
                 "C": [],
                 "G": [],
                 "L": [],
@@ -76,7 +86,7 @@ def create_context():
     )
 
 
-def test_missing_daily_coverage():
+def test_blocking_requirements_are_identified():
 
     context = create_context()
 
@@ -84,34 +94,44 @@ def test_missing_daily_coverage():
 
     scheduler._assign_member_requirements()
 
-    assert scheduler._get_missing_daily_coverage(1) == []
+    blocking = scheduler._get_blocking_requirements(
+        day=1,
+        shift="C",
+    )
+
+    employee_ids = {
+        requirement["employee_id"]
+        for requirement in blocking
+    }
+
+    assert employee_ids == {
+        "E001",
+        "E002",
+        "E003",
+        "E004",
+        "E005",
+    }
 
 
-def test_missing_c_coverage():
+def test_unrequested_assignment_is_not_a_blocking_requirement():
 
     context = create_context()
-
-    context.requirements["E003"].requirements["C"] = []
 
     scheduler = RosterScheduler(context)
 
     scheduler._assign_member_requirements()
 
-    assert scheduler._get_missing_daily_coverage(1) == ["C"]
+    # Add an assignment that was not requested by the member.
+    scheduler.roster["E001"][1] = "G"
 
+    blocking = scheduler._get_blocking_requirements(
+        day=1,
+        shift="C",
+    )
 
-def test_missing_a_and_b_coverage():
+    employee_ids = {
+        requirement["employee_id"]
+        for requirement in blocking
+    }
 
-    context = create_context()
-
-    context.requirements["E001"].requirements["A"] = []
-    context.requirements["E002"].requirements["B"] = []
-
-    scheduler = RosterScheduler(context)
-
-    scheduler._assign_member_requirements()
-
-    assert scheduler._get_missing_daily_coverage(1) == [
-        "A",
-        "B",
-    ]
+    assert "E001" not in employee_ids

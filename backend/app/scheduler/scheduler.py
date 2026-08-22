@@ -83,8 +83,90 @@ class RosterScheduler:
 
 
 
+    def _get_valid_coverage_candidates(
+        self,
+        day: int,
+        shift: str,
+    ) -> list[str]:
+        """
+        Return members who can currently be assigned the
+        requested coverage shift without violating the
+        existing hard constraints.
 
+        This function does not modify the roster.
+        """
 
+        candidates = []
+
+        for employee_id in self.context.members:
+
+            # A member can only receive one shift per day.
+            if day in self.roster[employee_id]:
+                continue
+
+            if can_assign_shift(
+                self.roster,
+                employee_id,
+                day,
+                shift,
+                self.context.previous_assignments,
+            ):
+                candidates.append(employee_id)
+
+        return candidates
+
+    
+# on any specifc day if there is no one left to support a shift then 
+# we consider from the list of people who have given requirements for that day 
+# from the perspective of relaxing 1/few of those requirements to maintain roster integrity
+    def _get_blocking_requirements(
+        self,
+        day: int,
+        shift: str,
+    ) -> list[dict]:
+        """
+        Find existing member requirements on a day that may be
+        blocking the requested shift from being assigned.
+
+        Returns requirement records containing:
+
+            employee_id
+            day
+            requested_shift
+
+        Only requirements explicitly supplied by members are
+        considered here.
+
+        This method does not modify the roster.
+        """
+
+        blocking_requirements = []
+
+        for employee_id in self.context.members:
+
+            current_shift = self.roster[employee_id].get(day)
+
+            if current_shift is None:
+                continue
+
+            if day not in self._get_requirement_days(
+                employee_id,
+                current_shift,
+            ):
+                continue
+
+            if current_shift == shift:
+                continue
+
+            blocking_requirements.append(
+                {
+                    "employee_id": employee_id,
+                    "day": day,
+                    "requested_shift": current_shift,
+                }
+            )
+
+        return blocking_requirements
 
 
 
