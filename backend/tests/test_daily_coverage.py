@@ -10,6 +10,7 @@ def create_context():
         "E001",
         "E002",
         "E003",
+        "E004",
     ]
 
     requirements = {
@@ -28,8 +29,8 @@ def create_context():
             employee_id="E002",
             requirements={
                 "A": [],
-                "B": [],
-                "C": [1],
+                "B": [1],
+                "C": [],
                 "G": [],
                 "L": [],
                 "W": [],
@@ -40,10 +41,21 @@ def create_context():
             requirements={
                 "A": [],
                 "B": [],
+                "C": [1],
+                "G": [],
+                "L": [],
+                "W": [],
+            },
+        ),
+        "E004": MemberRequirement(
+            employee_id="E004",
+            requirements={
+                "A": [],
+                "B": [],
                 "C": [],
                 "G": [],
                 "L": [],
-                "W": [1],
+                "W": [],
             },
         ),
     }
@@ -61,7 +73,7 @@ def create_context():
     )
 
 
-def test_all_member_requirements_are_loaded():
+def test_missing_daily_coverage():
 
     context = create_context()
 
@@ -69,54 +81,34 @@ def test_all_member_requirements_are_loaded():
 
     scheduler._assign_member_requirements()
 
-    assert scheduler.roster["E001"][1] == "A"
-    assert scheduler.roster["E002"][1] == "C"
-    assert scheduler.roster["E003"][1] == "W"
+    assert scheduler._get_missing_daily_coverage(1) == []
 
 
-def test_requirement_loading_does_not_apply_roster_constraints():
+def test_missing_c_coverage():
 
     context = create_context()
 
-    # For this test, deliberately create a requirement set
-    # where all three members request A on the same day.
-    #
-    # This is valid input at the member level because each
-    # member requests only one shift on day 1.
-    context.requirements["E001"].requirements = {
-        "A": [1],
-        "B": [],
-        "C": [],
-        "G": [],
-        "L": [],
-        "W": [],
-    }
-
-    context.requirements["E002"].requirements = {
-        "A": [1],
-        "B": [],
-        "C": [],
-        "G": [],
-        "L": [],
-        "W": [],
-    }
-
-    context.requirements["E003"].requirements = {
-        "A": [1],
-        "B": [],
-        "C": [],
-        "G": [],
-        "L": [],
-        "W": [],
-    }
+    context.requirements["E003"].requirements["C"] = []
 
     scheduler = RosterScheduler(context)
 
     scheduler._assign_member_requirements()
 
-    # All requirements must be loaded exactly as requested,
-    # even though this temporarily violates the daily
-    # staffing rules.
-    assert scheduler.roster["E001"][1] == "A"
-    assert scheduler.roster["E002"][1] == "A"
-    assert scheduler.roster["E003"][1] == "A"
+    assert scheduler._get_missing_daily_coverage(1) == ["C"]
+
+
+def test_missing_a_and_b_coverage():
+
+    context = create_context()
+
+    context.requirements["E001"].requirements["A"] = []
+    context.requirements["E002"].requirements["B"] = []
+
+    scheduler = RosterScheduler(context)
+
+    scheduler._assign_member_requirements()
+
+    assert scheduler._get_missing_daily_coverage(1) == [
+        "A",
+        "B",
+    ]

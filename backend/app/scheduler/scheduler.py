@@ -54,9 +54,32 @@ class RosterScheduler:
     
     
     
+    def _get_missing_daily_coverage(
+        self,
+        day: int,
+    ) -> list[str]:
+        """
+        Return the mandatory working shifts that are currently
+        missing for a given day.
 
+        A, B and C must each have at least one member every day.
 
+        This method only reports what is missing. It does not
+        modify the roster.
+        """
 
+        missing = []
+
+        if self._get_daily_shift_count(day, "A") < 1:
+            missing.append("A")
+
+        if self._get_daily_shift_count(day, "B") < 1:
+            missing.append("B")
+
+        if self._get_daily_shift_count(day, "C") < 1:
+            missing.append("C")
+
+        return missing
 
 
 
