@@ -22,7 +22,7 @@ class RosterScheduler:
 
         self.unfulfilled_requirements: list[dict] = []
     
-    
+# ---- FIRST PASS ----
     def _assign_member_requirements(self):
         """
         Load every validated member requirement into the roster.
@@ -53,7 +53,7 @@ class RosterScheduler:
                     self.roster[employee_id][day] = shift
     
     
-    
+# Helper Functions to be used for second pass
     def _get_missing_daily_coverage(
         self,
         day: int,
@@ -310,6 +310,12 @@ class RosterScheduler:
 
         return employee_id
 
+
+
+
+
+# SECOND PASS:
+
 # covers daily shift coverage
     def _complete_daily_coverage(
         self,
@@ -370,10 +376,218 @@ class RosterScheduler:
                     f"on day {day}."
                 )
 
+# Find members with no requirement for any particular day
+    def _get_members_without_requirement(
+        self,
+        day: int,
+    ) -> list[str]:
+        """
+        Return members who do not have a specific requirement
+        for the given day and therefore can be assigned by the
+        core roster logic.
+        """
+
+        return [
+            employee_id
+            for employee_id in self.context.members
+            if day not in self.roster[employee_id]
+        ]
+
+# Determine whether a member must have a non-working day on any particular day
+    def _must_assign_non_working_day(
+        self,
+        employee_id: str,
+        day: int,
+    ) -> bool:
+        """
+        Return True when the member cannot be assigned a
+        working shift on this day because of a hard roster
+        constraint.
+
+        The main case is the maximum continuous-working-day
+        constraint, including previous-month history.
+        """
+
+        working_shifts = {
+            "A",
+            "B",
+            "C",
+            "G",
+        }
+
+# Asking the actual constraint layer whether any working shift is possible.
+# This automatically respects:
+    # maximum continuous working days
+    # previous month's final working streak
+    # C → A/B/G restriction
+    # one assignment per day
+    # C limits
+# because can_assign_shift() already performs those checks.
+        for shift in working_shifts:
+            if can_assign_shift(
+                self.roster,
+                employee_id,
+                day,
+                shift,
+                self.context.previous_assignments,
+            ):
+                return False
+
+        return True
 
 
+# Assign the appropriate non-working shift. W>H>L
+    def _assign_required_non_working_day(
+        self,
+        employee_id: str,
+        day: int,
+    ) -> bool:
+        """
+        Assign a non-working shift when the member cannot
+        receive a working shift.
+
+        Priority:
+            W > H > L
+
+        W and H are only assigned when the member still has
+        remaining quota for that shift.
+        """
+
+        if self._get_remaining_w(employee_id) > 0:
+            if can_assign_shift(
+                self.roster,
+                employee_id,
+                day,
+                "W",
+                self.context.previous_assignments,
+            ):
+                return self._assign(
+                    employee_id,
+                    day,
+                    "W",
+                )
+
+        if self._get_remaining_h(employee_id) > 0:
+            if can_assign_shift(
+                self.roster,
+                employee_id,
+                day,
+                "H",
+                self.context.previous_assignments,
+            ):
+                return self._assign(
+                    employee_id,
+                    day,
+                    "H",
+                )
+
+        if can_assign_shift(
+            self.roster,
+            employee_id,
+            day,
+            "L",
+            self.context.previous_assignments,
+        ):
+            return self._assign(
+                employee_id,
+                day,
+                "L",
+            )
+
+        return False
 
 
+# for any particular day assign working shifts to members(if possible to assign) 
+# and if they dont have any requirements for that particular day
+    def _fill_unrequested_members(
+        self,
+        day: int,
+    ):
+        """
+        Fill members who have no explicit requirement for the day.
+
+        If a member must have a non-working day because no working
+        shift is currently possible, assign W > H > L.
+
+        Otherwise assign a working shift while respecting all
+        hard constraints.
+        """
+
+        members = self._get_members_without_requirement(
+            day
+        )
+
+        for employee_id in members:
+
+            if self._must_assign_non_working_day(
+                employee_id,
+                day,
+            ):
+                if not self._assign_required_non_working_day(
+                    employee_id,
+                    day,
+                ):
+                    raise ValueError(
+                        f"Unable to assign a non-working "
+                        f"shift to {employee_id} on day {day}."
+                    )
+
+                continue
+
+            candidates = []
+
+            for shift in (
+                "A",
+                "B",
+                "C",
+                "G",
+            ):
+                if can_assign_shift(
+                    self.roster,
+                    employee_id,
+                    day,
+                    shift,
+                    self.context.previous_assignments,
+                ):
+                    candidates.append(shift)
+
+            if not candidates:
+                if not self._assign_required_non_working_day(
+                    employee_id,
+                    day,
+                ):
+                    raise ValueError(
+                        f"Unable to assign any shift to "
+                        f"{employee_id} on day {day}."
+                    )
+
+                continue
+
+            # If the member still needs C shifts to reach the
+            # monthly minimum, prefer C when it is valid.
+            c_count = self._get_c_count(
+                employee_id
+            )
+
+            if (
+                c_count < 3
+                and "C" in candidates
+            ):
+                selected_shift = "C"
+            else:
+                selected_shift = random.choice(
+                    candidates
+                )
+
+            if not self._assign(
+                employee_id,
+                day,
+                selected_shift,
+            ):
+                raise ValueError(
+                    f"Unable to assign {selected_shift} "
+                    f"to {employee_id} on day {day}."
+                )
 
 
 
