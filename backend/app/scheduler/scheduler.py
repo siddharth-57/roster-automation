@@ -310,6 +310,76 @@ class RosterScheduler:
 
         return employee_id
 
+# covers daily shift coverage
+    def _complete_daily_coverage(
+        self,
+        day: int,
+    ):
+        """
+        Satisfy the mandatory A/B/C coverage for one day.
+
+        Existing member requirements are preserved whenever possible.
+
+        If a required shift has no valid candidate:
+            1. Find requirements blocking the assignment.
+            2. Find requirements that can be relaxed.
+            3. Randomly select one relaxable requirement.
+            4. Relax it and assign the required shift.
+
+        Raises ValueError if the daily coverage cannot be
+        satisfied even after relaxing eligible requirements.
+        """
+
+        while True:
+
+            missing_shifts = self._get_missing_daily_coverage(
+                day
+            )
+
+            if not missing_shifts:
+                return
+
+            # We process one missing shift at a time.
+            shift = missing_shifts[0]
+
+            candidates = self._get_valid_coverage_candidates(
+                day,
+                shift,
+            )
+
+            if candidates:
+                employee_id = random.choice(
+                    candidates
+                )
+
+                if self._assign(
+                    employee_id,
+                    day,
+                    shift,
+                ):
+                    continue
+
+            employee_id = self._relax_random_requirement(
+                day,
+                shift,
+            )
+
+            if employee_id is None:
+                raise ValueError(
+                    f"Unable to satisfy {shift} coverage "
+                    f"on day {day}."
+                )
+
+
+
+
+
+
+
+
+
+
+
 
 
 
