@@ -3,9 +3,9 @@ MAX_CONTINUOUS_WORKING_DAYS = 6
 
 
 # Defines the max number of members in C shift on a weekday
-MAX_C_ON_WEEKDAY = 1
+# MAX_C_ON_WEEKDAY = 1
 # Defines the max number of members in C shift on a weekend
-MAX_C_ON_WEEKEND = 1
+# MAX_C_ON_WEEKEND = 1
 
 
 # Defines the minimum number of C shifts a member has to do in a month
