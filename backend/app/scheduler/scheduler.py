@@ -43,6 +43,9 @@ class RosterScheduler:
         self.active_requirements = copy.deepcopy(
             self.context.requirements
         )
+        
+        # This stores the warnings for the dates on which the basic A/B/C coverage couldn't be satisfied
+        self.warnings: list[str] = []
 
 
     # ------------------------------------------------------------------
@@ -276,7 +279,7 @@ class RosterScheduler:
                 day,
             )
 
-
+# This function might not be used as it goes through all the days of the month before implementing steps 2 or 3 from 2nd Pass
     def _run_pass_2_step_1(self) -> None:
         """
         Execute Pass 2 Step 1 for every day of the month.
@@ -1142,3 +1145,665 @@ class RosterScheduler:
             # This is essential because the committed replacement
             # changed the scheduler state.
             # ------------------------------------------------------
+
+
+
+    # ------------------------------------------------------------------
+    #              PASS 2 - STEP 2(d) Helper Functions
+    # ------------------------------------------------------------------
+
+    def _get_step2d_coverage_candidates(
+        self,
+        day: int,
+    ) -> dict[str, list[str]]:
+        """
+        Build a mapping of each missing A/B/C shift to the
+        free members who can perform that shift.
+
+        Pass 2 Step 2(d):
+
+        - Only genuinely free members are considered.
+        - Only currently missing A/B/C shifts are considered.
+        - Existing hard roster constraints are enforced.
+        - The previous 6 days are therefore respected through
+          can_assign_shift().
+        - The next-day requirement is deliberately ignored.
+        - No requirements are relaxed.
+        - The roster is not modified.
+        """
+
+        missing_shifts = self._get_missing_abc_shifts(day)
+
+        candidates = {
+            shift: []
+            for shift in missing_shifts
+        }
+
+        if not candidates:
+            return candidates
+
+        for employee_id in self._get_free_members(day):
+
+            for shift in missing_shifts:
+
+                if can_assign_shift(
+                    self.roster,
+                    employee_id,
+                    day,
+                    shift,
+                    self.context.previous_assignments,
+                ):
+                    candidates[shift].append(employee_id)
+
+        return candidates
+    
+    
+    def _select_step2d_coverage_candidate(
+        self,
+        day: int,
+        shift: str,
+        candidates: list[str],
+        candidate_map: dict[str, list[str]],
+    ) -> str | None:
+        """
+        Select the best free member for a Step 2(d) coverage shift.
+
+        Priority:
+        1. Member who worked the same shift on the previous day.
+        2. Member whose selection preserves another missing shift.
+        3. Deterministic employee ID ordering.
+
+        The supplied candidate_map is the Step 2(d) candidate map.
+        No roster state is modified.
+        """
+
+        if not candidates:
+            return None
+
+        # ------------------------------------------------------
+        # Priority 1:
+        # Prefer a member who worked the same shift yesterday.
+        # ------------------------------------------------------
+
+        previous_day_candidates = (
+            self._get_previous_day_same_shift_candidates(
+                candidates,
+                day,
+                shift,
+            )
+        )
+
+        if previous_day_candidates:
+            return sorted(previous_day_candidates)[0]
+
+        # ------------------------------------------------------
+        # Priority 2:
+        # Preserve candidates needed by another missing shift.
+        #
+        # A candidate is "needed" if they are the only candidate
+        # for another missing shift.
+        # ------------------------------------------------------
+
+        preservation_scores = {}
+
+        for employee_id in candidates:
+            score = 0
+
+            for other_shift, other_candidates in candidate_map.items():
+
+                if other_shift == shift:
+                    continue
+
+                if (
+                    employee_id in other_candidates
+                    and len(other_candidates) == 1
+                ):
+                    score += 1
+
+            preservation_scores[employee_id] = score
+
+        # Lower score is better:
+        # 0 = not needed by another shift
+        # 1+ = removing this member would eliminate another
+        #      shift's only candidate.
+
+        best_score = min(
+            preservation_scores.values()
+        )
+
+        best_candidates = [
+            employee_id
+            for employee_id, score
+            in preservation_scores.items()
+            if score == best_score
+        ]
+
+        # ------------------------------------------------------
+        # Priority 3:
+        # Deterministic tie-break.
+        # ------------------------------------------------------
+
+        return sorted(best_candidates)[0]
+
+    def _commit_step2d_coverage_assignment(
+        self,
+        employee_id: str,
+        day: int,
+        shift: str,
+    ) -> bool:
+        """
+        Permanently assign an A/B/C coverage shift to a free member
+        during Pass 2 Step 2(d).
+
+        The member must:
+        - have no assignment for the day,
+        - receive only A/B/C,
+        - satisfy the existing hard roster constraints.
+
+        Step 2(d) deliberately does not consider the member's
+        next-day requirement.
+
+        No requirement is relaxed or modified.
+        """
+
+        # ------------------------------------------------------
+        # Step 1:
+        # The member must actually be free on this day.
+        # ------------------------------------------------------
+
+        if day in self.roster[employee_id]:
+            return False
+
+        # ------------------------------------------------------
+        # Step 2:
+        # Step 2(d) only assigns A/B/C.
+        # ------------------------------------------------------
+
+        if shift not in {"A", "B", "C"}:
+            return False
+
+        # ------------------------------------------------------
+        # Step 3:
+        # Re-run the hard-rule validation immediately before
+        # making the permanent assignment.
+        #
+        # IMPORTANT:
+        # We intentionally call can_assign_shift() directly.
+        #
+        # This checks the roster hard rules and previous history,
+        # but does NOT check the next-day requirement.
+        # ------------------------------------------------------
+
+        if not can_assign_shift(
+            self.roster,
+            employee_id,
+            day,
+            shift,
+            self.context.previous_assignments,
+        ):
+            return False
+
+        # ------------------------------------------------------
+        # Step 4:
+        # Permanently assign the shift.
+        # ------------------------------------------------------
+
+        self.roster[employee_id][day] = shift
+
+        # ------------------------------------------------------
+        # Step 5:
+        # Keep C-shift tracking accurate.
+        # ------------------------------------------------------
+
+        if shift == "C":
+            self.c_shift_counts[employee_id] += 1
+
+        # ------------------------------------------------------
+        # IMPORTANT:
+        #
+        # Do NOT:
+        # - modify active_requirements
+        # - modify context.requirements
+        # - modify relaxed_requirements
+        # - modify W/H quotas
+        #
+        # The member was genuinely free, so there is no
+        # requirement being replaced or relaxed.
+        # ------------------------------------------------------
+
+        return True
+
+
+    
+        # ------------------------------------------------------
+        # Step 2(d): Main Function
+        # ------------------------------------------------------
+
+    def _run_pass2_step2d(self, day: int) -> bool:
+        """
+        Pass 2 - Step 2(d).
+
+        Fill remaining A/B/C coverage using genuinely free
+        members.
+
+        Priority:
+            C > B > A
+
+        The candidate map is rebuilt after every successful
+        assignment because the roster state changes.
+
+        The next-day requirement is intentionally ignored.
+
+        Returns:
+            True  -> A/B/C coverage is complete.
+            False -> coverage remains incomplete because no
+                     valid candidate remains for any missing shift.
+
+        A False result does NOT block Step 3. The caller is
+        responsible for continuing to Step 3.
+        """
+
+        while True:
+
+            # --------------------------------------------------
+            # 1. Determine the shifts that are currently missing.
+            # --------------------------------------------------
+
+            missing_shifts = self._get_missing_abc_shifts(day)
+
+            if not missing_shifts:
+                return True
+
+            # --------------------------------------------------
+            # 2. Build a fresh candidate map.
+            #
+            # This must happen every iteration because the
+            # roster changes after every successful assignment.
+            # --------------------------------------------------
+
+            candidate_map = (
+                self._get_step2d_coverage_candidates(day)
+            )
+
+            # --------------------------------------------------
+            # 3. Determine whether ANY remaining shift has at
+            #    least one candidate.
+            #
+            # It is not enough for one particular shift to have
+            # no candidates. Another missing shift may still be
+            # assignable.
+            # --------------------------------------------------
+
+            has_any_candidate = any(
+                candidate_map.get(shift)
+                for shift in missing_shifts
+            )
+
+            if not has_any_candidate:
+                break
+
+            # --------------------------------------------------
+            # 4. Process shifts according to:
+            #
+            # C > B > A
+            # --------------------------------------------------
+
+            committed = False
+
+            for shift in ("C", "B", "A"):
+
+                if shift not in missing_shifts:
+                    continue
+
+                candidates = candidate_map.get(
+                    shift,
+                    [],
+                )
+
+                if not candidates:
+                    continue
+
+                # ----------------------------------------------
+                # 5. Select the best candidate.
+                #
+                # Selection priority:
+                #   - same shift yesterday
+                #   - preserve another shift's only candidate
+                #   - deterministic employee ID
+                # ----------------------------------------------
+
+                employee_id = (
+                    self._select_step2d_coverage_candidate(
+                        day=day,
+                        shift=shift,
+                        candidates=candidates,
+                        candidate_map=candidate_map,
+                    )
+                )
+
+                if employee_id is None:
+                    continue
+
+                # ----------------------------------------------
+                # 6. Commit the assignment.
+                # ----------------------------------------------
+
+                if self._commit_step2d_coverage_assignment(
+                    employee_id,
+                    day,
+                    shift,
+                ):
+                    committed = True
+                    break
+
+            # --------------------------------------------------
+            # 7. If an assignment succeeded, restart the loop.
+            #
+            # This rebuilds:
+            #   - missing shifts
+            #   - free members
+            #   - candidate map
+            #   - candidate selection state
+            # --------------------------------------------------
+
+            if committed:
+                continue
+
+            # --------------------------------------------------
+            # 8. We had candidates in the map, but none could be
+            #    committed.
+            #
+            # Rebuild the candidate map on the next iteration.
+            #
+            # If no candidates remain, the loop will terminate.
+            # --------------------------------------------------
+
+            continue
+
+        # ------------------------------------------------------
+        # 9. No candidate remains for ANY remaining missing shift.
+        # ------------------------------------------------------
+
+        remaining = self._get_missing_abc_shifts(day)
+
+        if not remaining:
+            return True
+
+        # ------------------------------------------------------
+        # 10. Coverage is incomplete.
+        #
+        # Record the frontend-visible warning.
+        # ------------------------------------------------------
+
+        warning = (
+            f"Pending to allocate {len(remaining)} shifts "
+            f"on {day} due to conflicting requirements"
+        )
+
+        self.warnings.append(warning)
+
+        # ------------------------------------------------------
+        # 11. Return False to indicate incomplete coverage.
+        #
+        # This does NOT prevent Step 3 from running.
+        # ------------------------------------------------------
+
+        return False
+    
+    
+    # ------------------------------------------------------
+    # Step 3: Helper Functions
+    # ------------------------------------------------------
+
+    def _get_step3_working_shift_candidates(
+        self,
+        employee_id: str,
+        day: int,
+    ) -> list[str]:
+        """
+        Return valid working shifts (A/B) for Step 3.
+
+        The check considers:
+        - existing roster assignments
+        - hard constraints
+        - previous working history
+        - next-day requirement
+
+        The next-day requirement is intentionally considered here,
+        unlike Step 2(d).
+        """
+
+        candidates = []
+
+        for shift in ("A", "B"):
+            if self._can_assign_shift_with_next_day_requirement(
+                employee_id,
+                day,
+                shift,
+            ):
+                candidates.append(shift)
+
+        return candidates
+
+
+    def _select_step3_working_shift(
+        self,
+        employee_id: str,
+        day: int,
+        candidates: list[str],
+    ) -> str | None:
+        """
+        Select A/B for a free member.
+
+        Prefer the same working shift as the previous day when
+        that shift is still a valid candidate.
+
+        Otherwise use a deterministic A/B ordering.
+        """
+
+        if not candidates:
+            return None
+
+        previous_day = day - 1
+
+        if previous_day >= 1:
+            previous_shift = self.roster[employee_id].get(
+                previous_day
+            )
+
+            if previous_shift in candidates:
+                return previous_shift
+
+        if "A" in candidates:
+            return "A"
+
+        if "B" in candidates:
+            return "B"
+
+        return None
+
+
+    def _assign_step3_non_working_shift(
+        self,
+        employee_id: str,
+        day: int,
+    ) -> str:
+        """
+        Assign the highest-priority available non-working shift.
+
+        Priority:
+            W > H > L
+        """
+
+        if self.remaining_w[employee_id] > 0:
+            self.roster[employee_id][day] = "W"
+            self.remaining_w[employee_id] -= 1
+            return "W"
+
+        if self.remaining_h[employee_id] > 0:
+            self.roster[employee_id][day] = "H"
+            self.remaining_h[employee_id] -= 1
+            return "H"
+
+        self.roster[employee_id][day] = "L"
+        return "L"
+
+
+# ------------------------------------------------------
+#           Step 3: Main Function
+# ------------------------------------------------------
+
+    def _run_pass2_step3(self, day: int) -> None:
+        """
+        Pass 2 - Step 3.
+
+        Process every member who is free when Step 3 begins.
+
+        For each free member:
+            1. Try A/B while respecting hard rules and the
+               next-day requirement.
+            2. Prefer the same A/B shift as yesterday when valid.
+            3. If neither A nor B is valid, assign W/H/L using
+               W > H > L.
+
+        Each member receives exactly one assignment.
+        """
+
+        free_members = self._get_free_members(day)
+
+        for employee_id in free_members:
+
+            candidates = self._get_step3_working_shift_candidates(
+                employee_id,
+                day,
+            )
+
+            if candidates:
+                shift = self._select_step3_working_shift(
+                    employee_id,
+                    day,
+                    candidates,
+                )
+
+                if shift is not None:
+                    self.roster[employee_id][day] = shift
+                    continue
+
+            self._assign_step3_non_working_shift(
+                employee_id,
+                day,
+            )
+
+
+# ------------------------------------------------------
+#             PASS 2: ORCHESTRATION FUNCTION
+# ------------------------------------------------------
+
+
+    def _run_pass_2(self) -> None:
+        """
+        Run Pass 2 for every day in the roster.
+
+        Each day is processed completely before moving to the next day.
+
+        Per-day flow:
+
+            Step 1
+                ↓
+            Step 2(a) - check A/B/C coverage
+                ↓
+            Step 2(b) - if coverage incomplete
+                ↓
+            Step 2(c) - if coverage still incomplete
+                ↓
+            Step 2(d) - if coverage still incomplete
+                ↓
+            Step 3 - always runs after Step 2
+
+        Step 2(d) may leave A/B/C coverage incomplete. That does not
+        prevent Step 3 from running.
+        """
+
+        for day in range(1, self.context.days_in_month + 1):
+
+            # ------------------------------------------------------
+            # Step 1
+            #
+            # Validate and handle invalid requirements for this day.
+            #
+            # IMPORTANT:
+            # _run_pass_2_step_1() processes the entire month, so the
+            # day-level orchestrator uses _validate_day_requirements()
+            # directly.
+            # ------------------------------------------------------
+            self._validate_day_requirements(day)
+
+            # ------------------------------------------------------
+            # Step 2(a)
+            #
+            # Check whether the minimum daily A/B/C coverage is already
+            # satisfied.
+            #
+            # If there are no missing A/B/C shifts, go directly to
+            # Step 3.
+            # ------------------------------------------------------
+            if not self._get_missing_abc_shifts(day):
+
+                self._run_pass2_step3(day)
+                continue
+
+            # ------------------------------------------------------
+            # Step 2(b)
+            #
+            # Try to cover the remaining A/B/C shifts using free
+            # members.
+            # ------------------------------------------------------
+            self._fill_abc_coverage_from_free_members(day)
+
+            # ------------------------------------------------------
+            # Check A/B/C coverage again.
+            #
+            # If Step 2(b) completed coverage, skip 2(c) and 2(d)
+            # and move directly to Step 3.
+            # ------------------------------------------------------
+            if not self._get_missing_abc_shifts(day):
+
+                self._run_pass2_step3(day)
+                continue
+
+            # ------------------------------------------------------
+            # Step 2(c)
+            #
+            # Try requirement-coverage replacements.
+            # ------------------------------------------------------
+            self._run_pass_2_step_2c(day)
+
+            # ------------------------------------------------------
+            # Check A/B/C coverage again.
+            #
+            # If Step 2(c) completed coverage, skip 2(d) and move
+            # directly to Step 3.
+            # ------------------------------------------------------
+            if not self._get_missing_abc_shifts(day):
+
+                self._run_pass2_step3(day)
+                continue
+
+            # ------------------------------------------------------
+            # Step 2(d)
+            #
+            # Try the remaining free members.
+            #
+            # Step 2(d) itself handles its internal candidate loop and
+            # generates the pending-allocation warning if it exhausts
+            # all candidates while coverage is still incomplete.
+            # ------------------------------------------------------
+            self._run_pass2_step2d(day)
+
+            # ------------------------------------------------------
+            # Step 3
+            #
+            # Step 3 ALWAYS runs after Step 2(d), regardless of whether
+            # Step 2(d) completed A/B/C coverage.
+            # ------------------------------------------------------
+            self._run_pass2_step3(day)
