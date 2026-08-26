@@ -1,4 +1,5 @@
 import copy
+import random
 
 from app.scheduler.context import RosterContext
 from app.scheduler.constraints import can_assign_shift
@@ -1807,3 +1808,408 @@ class RosterScheduler:
             # Step 2(d) completed A/B/C coverage.
             # ------------------------------------------------------
             self._run_pass2_step3(day)
+        
+        
+        
+# ------------------------------------------------------
+#                       PASS 3
+# ------------------------------------------------------
+
+
+# ------------------------------------------------------
+#                   PASS 3 Helper Functions
+# ------------------------------------------------------
+
+    def _get_pass3_eligible_members(
+        self,
+        day: int,
+        non_working_shift: str,
+    ) -> list[str]:
+        """
+        Return members eligible to receive the specified non-working
+        shift during Pass 3.
+
+        A member is eligible only when ALL of the following are true:
+
+        1. The member has no active requirement on this day.
+        2. The member is currently assigned A or B.
+        3. The member still has the requested non-working shift
+           available in their monthly quota.
+
+        For W:
+            remaining_w[employee_id] > 0
+
+        For H:
+            remaining_h[employee_id] > 0
+        """
+
+        if non_working_shift not in {"W", "H"}:
+            return []
+
+        eligible_members = []
+
+        for employee_id in self.context.members:
+
+            # --------------------------------------------------
+            # Condition 1:
+            # The member must have NO active requirement today.
+            # --------------------------------------------------
+            if self._get_active_requirement_for_day(
+                employee_id,
+                day,
+            ) is not None:
+                continue
+
+            # --------------------------------------------------
+            # Condition 2:
+            # The member must currently be working A or B.
+            # --------------------------------------------------
+            current_shift = self.roster[employee_id].get(day)
+
+            if current_shift not in {"A", "B"}:
+                continue
+
+            # --------------------------------------------------
+            # Condition 3:
+            # The member must still require this non-working shift.
+            # --------------------------------------------------
+            if non_working_shift == "W":
+                if self.remaining_w[employee_id] <= 0:
+                    continue
+
+            elif non_working_shift == "H":
+                if self.remaining_h[employee_id] <= 0:
+                    continue
+
+            eligible_members.append(employee_id)
+
+        return eligible_members
+
+
+    def _get_pass3_shift_counts(
+        self,
+        day: int,
+    ) -> dict[str, int]:
+        """
+        Return the current number of A and B assignments for a day.
+        """
+
+        counts = {
+            "A": 0,
+            "B": 0,
+        }
+
+        for employee_id in self.context.members:
+            shift = self.roster[employee_id].get(day)
+
+            if shift in {"A", "B"}:
+                counts[shift] += 1
+
+        return counts
+
+
+    def _get_pass3_staffing_minimum(
+        self,
+        day: int,
+    ) -> int:
+        """
+        Return the minimum number of members that must remain
+        on each A/B shift after Pass 3 allocation.
+
+        Weekday:
+            A >= 2
+            B >= 2
+
+        Weekend:
+            A >= 1
+            B >= 1
+        """
+
+        # Day 1 of the roster corresponds to the first day of
+        # context.year/context.month.
+        import calendar
+
+        weekday = calendar.weekday(
+            self.context.year,
+            self.context.month,
+            day,
+        )
+
+        # Monday = 0 ... Friday = 4
+        if weekday < 5:
+            return 2
+
+        return 1
+
+
+    def _select_pass3_members(
+        self,
+        eligible_members: list[str],
+        shift: str,
+        removable_count: int,
+    ) -> list[str]:
+        """
+        Randomly select eligible members for Pass 3.
+
+        The caller has already calculated how many members may safely
+        be removed from the A/B shift.
+
+        Only eligible members supplied by the caller are considered.
+        """
+
+        if removable_count <= 0:
+            return []
+
+        if not eligible_members:
+            return []
+
+        candidates = list(eligible_members)
+
+        random.shuffle(candidates)
+
+        return candidates[:removable_count]
+
+
+    def _get_pass3_removable_members(
+        self,
+        day: int,
+        non_working_shift: str,
+    ) -> list[str]:
+        """
+        Return the members who may actually be converted from A/B
+        to the requested non-working shift on this day.
+
+        Eligibility is determined first.
+
+        Then the staffing minimum is applied:
+
+        Weekday:
+            A >= 2
+            B >= 2
+
+        Weekend:
+            A >= 1
+            B >= 1
+        """
+
+        eligible_members = self._get_pass3_eligible_members(
+            day,
+            non_working_shift,
+        )
+
+        if not eligible_members:
+            return []
+
+        shift_counts = self._get_pass3_shift_counts(day)
+
+        minimum_members = self._get_pass3_staffing_minimum(day)
+
+        removable_members = []
+
+        # ------------------------------------------------------
+        # Process A and B independently.
+        #
+        # We can only remove:
+        #
+        #     current_count - minimum
+        #
+        # members from each shift.
+        # ------------------------------------------------------
+        for working_shift in ("A", "B"):
+
+            candidates_for_shift = [
+                employee_id
+                for employee_id in eligible_members
+                if self.roster[employee_id].get(day) == working_shift
+            ]
+
+            removable_count = max(
+                0,
+                shift_counts[working_shift] - minimum_members,
+            )
+
+            selected_members = self._select_pass3_members(
+                candidates_for_shift,
+                working_shift,
+                removable_count,
+            )
+
+            removable_members.extend(selected_members)
+
+        return removable_members
+
+
+    def _assign_pass3_non_working_shift(
+        self,
+        employee_id: str,
+        day: int,
+        non_working_shift: str,
+    ) -> bool:
+        """
+        Replace the member's current A/B assignment with W or H.
+
+        The member must already be eligible for this shift.
+
+        Returns:
+            True  -> assignment was made.
+            False -> assignment was rejected.
+        """
+
+        if non_working_shift not in {"W", "H"}:
+            return False
+
+        # ------------------------------------------------------
+        # The member must currently be assigned A or B.
+        # ------------------------------------------------------
+        current_shift = self.roster[employee_id].get(day)
+
+        if current_shift not in {"A", "B"}:
+            return False
+
+        # ------------------------------------------------------
+        # The member must have NO active requirement.
+        # ------------------------------------------------------
+        if self._get_active_requirement_for_day(
+            employee_id,
+            day,
+        ) is not None:
+            return False
+
+        # ------------------------------------------------------
+        # The member must still have the requested quota.
+        # ------------------------------------------------------
+        if non_working_shift == "W":
+
+            if self.remaining_w[employee_id] <= 0:
+                return False
+
+        else:
+
+            if self.remaining_h[employee_id] <= 0:
+                return False
+
+        # ------------------------------------------------------
+        # Replace A/B with W/H.
+        # ------------------------------------------------------
+        self.roster[employee_id][day] = non_working_shift
+
+        # ------------------------------------------------------
+        # Update the appropriate remaining quota.
+        # ------------------------------------------------------
+        if non_working_shift == "W":
+            self.remaining_w[employee_id] -= 1
+
+        else:
+            self.remaining_h[employee_id] -= 1
+
+        return True
+
+
+    def _run_pass3_for_non_working_shift(
+        self,
+        day: int,
+        non_working_shift: str,
+    ) -> None:
+        """
+        Allocate one type of non-working shift for a single day.
+
+        W is processed before H by the caller.
+
+        On both weekdays and weekends, only eligible members are
+        considered.
+
+        Weekday:
+            keep A >= 2 and B >= 2.
+
+        Weekend:
+            keep A >= 1 and B >= 1.
+
+        Among eligible members, selection is random.
+        """
+
+        removable_members = self._get_pass3_removable_members(
+            day,
+            non_working_shift,
+        )
+
+        for employee_id in removable_members:
+
+            self._assign_pass3_non_working_shift(
+                employee_id,
+                day,
+                non_working_shift,
+            )
+
+
+# ------------------------------------------------------
+#               PASS 3 MAIN FUNCTION
+# ------------------------------------------------------
+
+    def _run_pass3(
+        self,
+        day: int | None = None,
+    ) -> None:
+        """
+        Pass 3.
+
+        Traverse the roster day by day.
+
+        For every day:
+
+            1. Allocate remaining W requirements.
+            2. Once W allocation is processed, allocate remaining H
+               requirements.
+
+        A member is eligible only if:
+
+            - they have no active requirement on that day;
+            - they currently work A or B;
+            - they still have the requested W/H quota.
+
+        Weekday staffing:
+            A >= 2
+            B >= 2
+
+        Weekend staffing:
+            A >= 1
+            B >= 1
+
+        If multiple eligible members exist, selection is random.
+
+        If day is supplied, only that day is processed. This is useful
+        for unit testing.
+
+        If day is None, every day of the roster is processed.
+        """
+
+        # ------------------------------------------------------
+        # Determine which days to process.
+        # ------------------------------------------------------
+        if day is not None:
+            days = [day]
+        else:
+            days = range(
+                1,
+                self.context.days_in_month + 1,
+            )
+
+        # ------------------------------------------------------
+        # W must always be allocated before H.
+        # ------------------------------------------------------
+        for current_day in days:
+
+            # --------------------------------------------------
+            # First allocate W.
+            # --------------------------------------------------
+            self._run_pass3_for_non_working_shift(
+                current_day,
+                "W",
+            )
+
+            # --------------------------------------------------
+            # Then allocate H.
+            # --------------------------------------------------
+            self._run_pass3_for_non_working_shift(
+                current_day,
+                "H",
+            )
