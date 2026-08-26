@@ -2376,62 +2376,6 @@ class RosterScheduler:
         return True
 
 
-    def _assign_pass4_remaining_for_member(
-        self,
-        employee_id: str,
-        non_working_shift: str,
-    ) -> None:
-        """
-        Try to assign all remaining W or H requirements for one
-        member.
-
-        Days are considered in roster order.
-
-        The process stops naturally when:
-
-        - the member's remaining quota reaches zero, or
-        - there are no more eligible days.
-        """
-
-        if non_working_shift == "W":
-            remaining = self.remaining_w[employee_id]
-        else:
-            remaining = self.remaining_h[employee_id]
-
-        if remaining <= 0:
-            return
-
-        eligible_days = self._get_pass4_eligible_days(
-            employee_id,
-        )
-
-        for day in eligible_days:
-
-            # The member may have been assigned W/H on an earlier
-            # iteration, so re-check the current assignment.
-            current_shift = self.roster[employee_id].get(day)
-
-            if current_shift not in {"A", "B"}:
-                continue
-
-            assigned = self._assign_pass4_non_working_shift(
-                employee_id=employee_id,
-                day=day,
-                non_working_shift=non_working_shift,
-            )
-
-            if assigned:
-
-                if non_working_shift == "W":
-                    remaining = self.remaining_w[employee_id]
-                else:
-                    remaining = self.remaining_h[employee_id]
-
-                if remaining <= 0:
-                    break
-
-
-
 # ------------------------------------------------------
 #               PASS 4 Main Function
 # ------------------------------------------------------
@@ -2442,28 +2386,28 @@ class RosterScheduler:
     ) -> None:
         """
         Pass 4.
-    
+
         Allocate remaining W and H requirements that could not be
         satisfied during Pass 3.
-    
+
         W is always processed before H.
-    
+
         Unlike Pass 3, the member may have an active requirement
         on the selected day.
-    
+
         When an active requirement is replaced by W/H:
-    
+
             active_requirements
                     ↓
             relaxed_requirements
-    
+
         The replacement is only allowed when another member is
         still working the same A/B shift.
-    
+
         If day is supplied, only that day is processed.
         If day is None, the complete roster is processed.
         """
-    
+
         if day is not None:
             days = [day]
         else:
@@ -2473,21 +2417,21 @@ class RosterScheduler:
                     self.context.days_in_month + 1,
                 )
             )
-    
+
         # W must always be completed before H.
         for non_working_shift in ("W", "H"):
-        
+
             for employee_id in self.context.members:
-            
+
                 if non_working_shift == "W":
                     if self.remaining_w[employee_id] <= 0:
                         continue
                 else:
                     if self.remaining_h[employee_id] <= 0:
                         continue
-                    
+
                 for current_day in days:
-                
+
                     # Stop once this member's quota is satisfied.
                     if non_working_shift == "W":
                         if self.remaining_w[employee_id] <= 0:
@@ -2495,15 +2439,15 @@ class RosterScheduler:
                     else:
                         if self.remaining_h[employee_id] <= 0:
                             break
-                        
+
                     current_shift = self.roster[
                         employee_id
                     ].get(current_day)
-    
+
                     # Member must currently be working A/B.
                     if current_shift not in {"A", "B"}:
                         continue
-                    
+
                     # There must be another member on the same shift.
                     other_member_exists = any(
                         other_employee_id != employee_id
@@ -2512,12 +2456,366 @@ class RosterScheduler:
                         ].get(current_day) == current_shift
                         for other_employee_id in self.context.members
                     )
-    
+
                     if not other_member_exists:
                         continue
-                    
+
                     self._assign_pass4_non_working_shift(
                         employee_id=employee_id,
                         day=current_day,
                         non_working_shift=non_working_shift,
                     )
+
+    
+# ------------------------------------------------------
+#                       PASS 5
+# ------------------------------------------------------
+
+
+# ------------------------------------------------------
+#               PASS 5 Helper Functions
+# ------------------------------------------------------
+
+    def _get_pass5_shift_counts(
+        self,
+        day: int,
+    ) -> dict[str, int]:
+        """
+        Return the number of members assigned to A, B and G
+        on the specified day.
+        """
+
+        counts = {
+            "A": 0,
+            "B": 0,
+            "G": 0,
+        }
+
+        for employee_id in self.context.members:
+            shift = self.roster[employee_id].get(day)
+
+            if shift in counts:
+                counts[shift] += 1
+
+        return counts
+
+
+    def _get_pass5_eligible_members(
+        self,
+        day: int,
+        current_shift: str,
+    ) -> list[str]:
+        """
+        Return members who are eligible for a Pass 5 shift change.
+
+        A member is eligible only when:
+
+        1. They are currently assigned current_shift.
+        2. They have no active requirement for that day.
+
+        Pass 5 only considers members currently assigned A or B.
+        """
+
+        if current_shift not in {"A", "B"}:
+            return []
+
+        eligible_members = []
+
+        for employee_id in self.context.members:
+
+            # --------------------------------------------------
+            # Member must currently have the requested shift.
+            # --------------------------------------------------
+            if self.roster[employee_id].get(day) != current_shift:
+                continue
+
+            # --------------------------------------------------
+            # Member must have no active requirement on this day.
+            # --------------------------------------------------
+            active_requirement = (
+                self._get_active_requirement_for_day(
+                    employee_id,
+                    day,
+                )
+            )
+
+            if active_requirement is not None:
+                continue
+
+            eligible_members.append(employee_id)
+
+        return eligible_members
+
+
+    def _select_pass5_member(
+        self,
+        candidates: list[str],
+        day: int,
+        new_shift: str,
+    ) -> str | None:
+
+        if not candidates:
+            return None
+
+        # --------------------------------------------------
+        # G assignment:
+        # previous-day shift does NOT matter.
+        # --------------------------------------------------
+        if new_shift == "G":
+            return random.choice(candidates)
+
+        # --------------------------------------------------
+        # A/B reassignment:
+        # prefer candidates who had the new shift yesterday.
+        # --------------------------------------------------
+        previous_day_candidates = (
+            self._get_previous_day_same_shift_candidates(
+                candidates,
+                day,
+                new_shift,
+            )
+        )
+
+        if previous_day_candidates:
+            return random.choice(previous_day_candidates)
+
+        return random.choice(candidates)
+
+
+    def _assign_pass5_shift(
+        self,
+        employee_id: str,
+        day: int,
+        new_shift: str,
+    ) -> bool:
+        """
+        Change a member's shift during Pass 5.
+
+        Pass 5 only changes the roster assignment.
+
+        It does not:
+        - modify active requirements;
+        - modify relaxed requirements;
+        - modify W/H quotas;
+        - modify frontend requirements.
+        """
+
+        if new_shift not in {"A", "B", "G"}:
+            return False
+
+        current_shift = self.roster[
+            employee_id
+        ].get(day)
+
+        # ------------------------------------------------------
+        # Only A/B members may be changed.
+        # ------------------------------------------------------
+        if current_shift not in {"A", "B"}:
+            return False
+
+        # ------------------------------------------------------
+        # The member must have no active requirement.
+        # ------------------------------------------------------
+        active_requirement = (
+            self._get_active_requirement_for_day(
+                employee_id,
+                day,
+            )
+        )
+
+        if active_requirement is not None:
+            return False
+
+        # ------------------------------------------------------
+        # Assign the new shift.
+        # ------------------------------------------------------
+        self.roster[employee_id][day] = new_shift
+
+        return True
+    
+# ------------------------------------------------------
+#               PASS 5 Main Function
+# ------------------------------------------------------
+
+    def _run_pass5(
+        self,
+        day: int | None = None,
+    ) -> None:
+        """
+        Pass 5.
+
+        Balance A/B assignments and, where appropriate,
+        introduce a G assignment.
+
+        For every day:
+
+        1. If A exceeds B by 2 or more, change one eligible
+           A member to B.
+
+        2. Else if B exceeds A by 2 or more, change one eligible
+           B member to A.
+
+        3. If there is no G assignment:
+             - if A exceeds B by exactly 1, change one eligible
+               A member to G;
+             - else if B exceeds A by exactly 1, change one
+               eligible B member to G.
+
+        Candidate selection for A/B reassignment prefers a member
+        who had the new A/B shift on the previous day.
+        For G assignment, previous-day shift history is ignored.
+
+        Day 1 has no previous-day preference.
+
+        Pass 5 does not relax requirements or modify W/H quotas.
+        """
+
+        # ------------------------------------------------------
+        # Determine which days to process.
+        # ------------------------------------------------------
+        if day is not None:
+            days = [day]
+        else:
+            days = list(
+                range(
+                    1,
+                    self.context.days_in_month + 1,
+                )
+            )
+
+        # ------------------------------------------------------
+        # Process each day independently.
+        # ------------------------------------------------------
+        for current_day in days:
+
+            counts = self._get_pass5_shift_counts(
+                current_day
+            )
+
+            a_count = counts["A"]
+            b_count = counts["B"]
+            g_count = counts["G"]
+
+            # --------------------------------------------------
+            # First: A/B balancing when difference is >= 2.
+            #
+            # This is an if / elif structure exactly as specified.
+            # --------------------------------------------------
+
+            if a_count - b_count >= 2:
+
+                candidates = (
+                    self._get_pass5_eligible_members(
+                        current_day,
+                        "A",
+                    )
+                )
+
+                selected_employee = (
+                    self._select_pass5_member(
+                        candidates=candidates,
+                        day=current_day,
+                        new_shift="B",
+                    )
+                )
+
+                if selected_employee is not None:
+                    self._assign_pass5_shift(
+                        employee_id=selected_employee,
+                        day=current_day,
+                        new_shift="B",
+                    )
+
+            elif b_count - a_count >= 2:
+
+                candidates = (
+                    self._get_pass5_eligible_members(
+                        current_day,
+                        "B",
+                    )
+                )
+
+                selected_employee = (
+                    self._select_pass5_member(
+                        candidates=candidates,
+                        day=current_day,
+                        new_shift="A",
+                    )
+                )
+
+                if selected_employee is not None:
+                    self._assign_pass5_shift(
+                        employee_id=selected_employee,
+                        day=current_day,
+                        new_shift="A",
+                    )
+
+            # --------------------------------------------------
+            # Second: G assignment.
+            #
+            # G is considered only when there was no G before
+            # the Pass 5 operation for this day.
+            # --------------------------------------------------
+
+            # After A/B rebalancing
+            counts = self._get_pass5_shift_counts(current_day)
+
+            a_count = counts["A"]
+            b_count = counts["B"]
+            g_count = counts["G"]
+            
+            if g_count == 0:
+
+                # --------------------------------------------------
+                # A exceeds B by exactly 1.
+                # --------------------------------------------------
+                if a_count - b_count == 1:
+
+                    candidates = (
+                        self._get_pass5_eligible_members(
+                            current_day,
+                            "A",
+                        )
+                    )
+
+                    selected_employee = (
+                        self._select_pass5_member(
+                            candidates=candidates,
+                            day=current_day,
+                            new_shift="G",
+                        )
+                    )
+
+                    if selected_employee is not None:
+                        self._assign_pass5_shift(
+                            employee_id=selected_employee,
+                            day=current_day,
+                            new_shift="G",
+                        )
+
+                # --------------------------------------------------
+                # B exceeds A by exactly 1.
+                # --------------------------------------------------
+                elif b_count - a_count == 1:
+
+                    candidates = (
+                        self._get_pass5_eligible_members(
+                            current_day,
+                            "B",
+                        )
+                    )
+
+                    selected_employee = (
+                        self._select_pass5_member(
+                            candidates=candidates,
+                            day=current_day,
+                            new_shift="G",
+                        )
+                    )
+
+                    if selected_employee is not None:
+                        self._assign_pass5_shift(
+                            employee_id=selected_employee,
+                            day=current_day,
+                            new_shift="G",
+                        )
