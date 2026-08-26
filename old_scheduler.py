@@ -1403,3 +1403,73 @@ class RosterScheduler:
 
         pass
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    def _assign_pass4_remaining_for_member(
+        self,
+        employee_id: str,
+        non_working_shift: str,
+    ) -> None:
+        """
+        Try to assign all remaining W or H requirements for one
+        member.
+
+        Days are considered in roster order.
+
+        The process stops naturally when:
+
+        - the member's remaining quota reaches zero, or
+        - there are no more eligible days.
+        """
+
+        if non_working_shift == "W":
+            remaining = self.remaining_w[employee_id]
+        else:
+            remaining = self.remaining_h[employee_id]
+
+        if remaining <= 0:
+            return
+
+        eligible_days = self._get_pass4_eligible_days(
+            employee_id,
+        )
+
+        for day in eligible_days:
+
+            # The member may have been assigned W/H on an earlier
+            # iteration, so re-check the current assignment.
+            current_shift = self.roster[employee_id].get(day)
+
+            if current_shift not in {"A", "B"}:
+                continue
+
+            assigned = self._assign_pass4_non_working_shift(
+                employee_id=employee_id,
+                day=day,
+                non_working_shift=non_working_shift,
+            )
+
+            if assigned:
+
+                if non_working_shift == "W":
+                    remaining = self.remaining_w[employee_id]
+                else:
+                    remaining = self.remaining_h[employee_id]
+
+                if remaining <= 0:
+                    break
