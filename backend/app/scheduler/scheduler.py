@@ -2213,3 +2213,311 @@ class RosterScheduler:
                 current_day,
                 "H",
             )
+
+
+
+
+# ------------------------------------------------------
+#                       PASS 4
+# ------------------------------------------------------
+
+
+# ------------------------------------------------------
+#               PASS 4 Helper Functions
+# ------------------------------------------------------
+
+    def _get_pass4_eligible_days(
+        self,
+        employee_id: str,
+    ) -> list[int]:
+        """
+        Return days on which the member can receive a remaining
+        W/H assignment during Pass 4.
+
+        A day is eligible when:
+
+        1. The member is currently assigned A or B.
+        2. There is at least one OTHER member on the same shift.
+
+        Unlike Pass 3, an active requirement on the day does NOT
+        make the day ineligible.
+
+        Pass 4 is specifically allowed to relax that requirement.
+        """
+
+        eligible_days = []
+
+        for day in range(
+            1,
+            self.context.days_in_month + 1,
+        ):
+            current_shift = self.roster[employee_id].get(day)
+
+            # The member must currently be working A or B.
+            if current_shift not in {"A", "B"}:
+                continue
+
+            # There must be another member on the same shift.
+            other_member_exists = any(
+                other_employee_id != employee_id
+                and self.roster[other_employee_id].get(day)
+                == current_shift
+                for other_employee_id in self.context.members
+            )
+
+            if not other_member_exists:
+                continue
+
+            eligible_days.append(day)
+
+        return eligible_days
+
+
+    def _assign_pass4_non_working_shift(
+        self,
+        employee_id: str,
+        day: int,
+        non_working_shift: str,
+    ) -> bool:
+        """
+        Assign W or H to a member during Pass 4.
+
+        The member must:
+
+        - still have the requested W/H requirement;
+        - currently be assigned A or B;
+        - have another member working the same shift.
+
+        If the member has an active requirement on this day,
+        that requirement is relaxed:
+
+            active requirement
+                    ↓
+              relaxed requirement
+
+        The original frontend requirement is not modified.
+        """
+
+        if non_working_shift not in {"W", "H"}:
+            return False
+
+        current_shift = self.roster[employee_id].get(day)
+
+        # ------------------------------------------------------
+        # The member must currently be on A or B.
+        # ------------------------------------------------------
+        if current_shift not in {"A", "B"}:
+            return False
+
+        # ------------------------------------------------------
+        # The member must still have the requested quota.
+        # ------------------------------------------------------
+        if non_working_shift == "W":
+            if self.remaining_w[employee_id] <= 0:
+                return False
+        else:
+            if self.remaining_h[employee_id] <= 0:
+                return False
+
+        # ------------------------------------------------------
+        # There must be another member on the same shift.
+        # ------------------------------------------------------
+        other_member_exists = any(
+            other_employee_id != employee_id
+            and self.roster[other_employee_id].get(day)
+            == current_shift
+            for other_employee_id in self.context.members
+        )
+
+        if not other_member_exists:
+            return False
+
+        # ------------------------------------------------------
+        # Check whether this day currently has an active
+        # requirement for this member.
+        # ------------------------------------------------------
+        active_requirement = self._get_active_requirement_for_day(
+            employee_id,
+            day,
+        )
+
+        # ------------------------------------------------------
+        # If there is an active requirement, Pass 4 explicitly
+        # relaxes it because we are replacing that requirement
+        # with W/H.
+        # ------------------------------------------------------
+        if active_requirement is not None:
+
+            self._record_relaxed_requirement(
+                employee_id,
+                day,
+                active_requirement,
+            )
+
+            self._remove_active_requirement(
+                employee_id,
+                day,
+                active_requirement,
+            )
+
+        # ------------------------------------------------------
+        # Replace the A/B assignment with W/H.
+        # ------------------------------------------------------
+        self.roster[employee_id][day] = non_working_shift
+
+        # ------------------------------------------------------
+        # Update the remaining monthly quota.
+        # ------------------------------------------------------
+        if non_working_shift == "W":
+            self.remaining_w[employee_id] -= 1
+        else:
+            self.remaining_h[employee_id] -= 1
+
+        return True
+
+
+    def _assign_pass4_remaining_for_member(
+        self,
+        employee_id: str,
+        non_working_shift: str,
+    ) -> None:
+        """
+        Try to assign all remaining W or H requirements for one
+        member.
+
+        Days are considered in roster order.
+
+        The process stops naturally when:
+
+        - the member's remaining quota reaches zero, or
+        - there are no more eligible days.
+        """
+
+        if non_working_shift == "W":
+            remaining = self.remaining_w[employee_id]
+        else:
+            remaining = self.remaining_h[employee_id]
+
+        if remaining <= 0:
+            return
+
+        eligible_days = self._get_pass4_eligible_days(
+            employee_id,
+        )
+
+        for day in eligible_days:
+
+            # The member may have been assigned W/H on an earlier
+            # iteration, so re-check the current assignment.
+            current_shift = self.roster[employee_id].get(day)
+
+            if current_shift not in {"A", "B"}:
+                continue
+
+            assigned = self._assign_pass4_non_working_shift(
+                employee_id=employee_id,
+                day=day,
+                non_working_shift=non_working_shift,
+            )
+
+            if assigned:
+
+                if non_working_shift == "W":
+                    remaining = self.remaining_w[employee_id]
+                else:
+                    remaining = self.remaining_h[employee_id]
+
+                if remaining <= 0:
+                    break
+
+
+
+# ------------------------------------------------------
+#               PASS 4 Main Function
+# ------------------------------------------------------
+
+    def _run_pass4(
+        self,
+        day: int | None = None,
+    ) -> None:
+        """
+        Pass 4.
+    
+        Allocate remaining W and H requirements that could not be
+        satisfied during Pass 3.
+    
+        W is always processed before H.
+    
+        Unlike Pass 3, the member may have an active requirement
+        on the selected day.
+    
+        When an active requirement is replaced by W/H:
+    
+            active_requirements
+                    ↓
+            relaxed_requirements
+    
+        The replacement is only allowed when another member is
+        still working the same A/B shift.
+    
+        If day is supplied, only that day is processed.
+        If day is None, the complete roster is processed.
+        """
+    
+        if day is not None:
+            days = [day]
+        else:
+            days = list(
+                range(
+                    1,
+                    self.context.days_in_month + 1,
+                )
+            )
+    
+        # W must always be completed before H.
+        for non_working_shift in ("W", "H"):
+        
+            for employee_id in self.context.members:
+            
+                if non_working_shift == "W":
+                    if self.remaining_w[employee_id] <= 0:
+                        continue
+                else:
+                    if self.remaining_h[employee_id] <= 0:
+                        continue
+                    
+                for current_day in days:
+                
+                    # Stop once this member's quota is satisfied.
+                    if non_working_shift == "W":
+                        if self.remaining_w[employee_id] <= 0:
+                            break
+                    else:
+                        if self.remaining_h[employee_id] <= 0:
+                            break
+                        
+                    current_shift = self.roster[
+                        employee_id
+                    ].get(current_day)
+    
+                    # Member must currently be working A/B.
+                    if current_shift not in {"A", "B"}:
+                        continue
+                    
+                    # There must be another member on the same shift.
+                    other_member_exists = any(
+                        other_employee_id != employee_id
+                        and self.roster[
+                            other_employee_id
+                        ].get(current_day) == current_shift
+                        for other_employee_id in self.context.members
+                    )
+    
+                    if not other_member_exists:
+                        continue
+                    
+                    self._assign_pass4_non_working_shift(
+                        employee_id=employee_id,
+                        day=current_day,
+                        non_working_shift=non_working_shift,
+                    )
