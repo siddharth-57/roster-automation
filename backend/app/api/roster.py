@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.schemas.roster import RosterGenerationRequest
@@ -9,6 +10,8 @@ from app.services.roster_persistence import save_roster
 from app.scheduler.context import MemberRequirement
 from app.scheduler.context_builder import build_roster_context
 from app.scheduler.orchestrator import generate_roster
+
+from app.models.roster import Roster
 
 from app.database import get_db
 
@@ -51,22 +54,53 @@ def generate_roster_endpoint(
     db: Session = Depends(get_db),
 ):
     """
-    Validate the roster request, retrieve previous-roster
-    history, build the scheduling context, execute all five
-    scheduling passes, save the generated roster, and return it.
+    Validate the roster request, check for an existing roster,
+    retrieve previous-roster history, build the scheduling
+    context, execute all five scheduling passes, save the
+    generated roster, and return the result.
     """
 
     # --------------------------------------------------
     # 1. Validate the incoming request.
     # --------------------------------------------------
+
     validated_request = validate_roster_request(
         request
     )
 
     # --------------------------------------------------
-    # 2. Convert API requirements into scheduler
+    # 2. Generate the roster name.
+    # --------------------------------------------------
+
+    roster_name = (
+        f"{validated_request.year}-"
+        f"{validated_request.month:02d}-"
+        f"Group-{validated_request.group_number}"
+    )
+
+    # --------------------------------------------------
+    # 3. Check whether this roster already exists.
+    # --------------------------------------------------
+
+    existing_roster = db.scalar(
+        select(Roster).where(
+            Roster.roster_name == roster_name
+        )
+    )
+
+    if existing_roster:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Roster '{roster_name}' already exists."
+            ),
+        )
+
+    # --------------------------------------------------
+    # 4. Convert API requirements into scheduler
     #    MemberRequirement objects.
     # --------------------------------------------------
+
     requirements = {}
 
     for member in validated_request.requirements:
@@ -85,17 +119,19 @@ def generate_roster_endpoint(
         )
 
     # --------------------------------------------------
-    # 3. Extract the member list.
+    # 5. Extract the member list.
     # --------------------------------------------------
+
     members = [
         member.employee_id
         for member in validated_request.requirements
     ]
 
     # --------------------------------------------------
-    # 4. Retrieve the previous month's roster history
+    # 6. Retrieve the previous month's roster history
     #    for the SAME group.
     # --------------------------------------------------
+
     previous_assignments = get_previous_month_assignments(
         db=db,
         year=validated_request.year,
@@ -104,8 +140,9 @@ def generate_roster_endpoint(
     )
 
     # --------------------------------------------------
-    # 5. Build the RosterContext.
+    # 7. Build the RosterContext.
     # --------------------------------------------------
+
     context = build_roster_context(
         year=validated_request.year,
         month=validated_request.month,
@@ -117,15 +154,17 @@ def generate_roster_endpoint(
     )
 
     # --------------------------------------------------
-    # 6. Run Pass 1 → Pass 2 → Pass 3 → Pass 4 → Pass 5.
+    # 8. Run Pass 1 → Pass 2 → Pass 3 → Pass 4 → Pass 5.
     # --------------------------------------------------
+
     scheduler = generate_roster(
         context
     )
 
     # --------------------------------------------------
-    # 7. Save the generated roster to PostgreSQL.
+    # 9. Save the generated roster to PostgreSQL.
     # --------------------------------------------------
+
     roster_record = save_roster(
         db=db,
         year=validated_request.year,
@@ -135,12 +174,15 @@ def generate_roster_endpoint(
     )
 
     # --------------------------------------------------
-    # 8. Return the generated roster.
+    # 10. Return the generated roster and scheduling
+    #     metadata.
     # --------------------------------------------------
+
     return {
         "message": "Roster generated successfully",
         "roster_id": roster_record.roster_id,
         "roster_name": roster_record.roster_name,
         "roster": scheduler.roster,
+        "warnings": scheduler.warnings,
         "relaxed_requirements": scheduler.relaxed_requirements,
     }

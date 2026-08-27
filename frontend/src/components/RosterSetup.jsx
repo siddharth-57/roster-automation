@@ -8,11 +8,14 @@ import {
   generateRoster,
 } from "../services/roster";
 
+
 const SHIFTS = ["A", "B", "C", "G", "L", "W"];
+
 
 function getDaysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
+
 
 function parseDates(value) {
   if (!value.trim()) {
@@ -25,6 +28,7 @@ function parseDates(value) {
     .filter((item) => item !== "");
 }
 
+
 function normalizeDates(value) {
   const dates = parseDates(value);
 
@@ -32,6 +36,7 @@ function normalizeDates(value) {
 
   return uniqueDates.join(",");
 }
+
 
 function validateDateInput(value, year, month) {
   if (!value.trim()) {
@@ -63,6 +68,7 @@ function validateDateInput(value, year, month) {
   return "";
 }
 
+
 function findMemberConflict(memberRequirements) {
   const datesUsed = {};
 
@@ -86,6 +92,7 @@ function findMemberConflict(memberRequirements) {
   return "";
 }
 
+
 function validateMemberRequirements(
   memberRequirements,
   year,
@@ -105,6 +112,7 @@ function validateMemberRequirements(
 
   return findMemberConflict(memberRequirements);
 }
+
 
 function RosterSetup() {
   const [members, setMembers] = useState([]);
@@ -129,9 +137,14 @@ function RosterSetup() {
 
   const [loading, setLoading] = useState(true);
 
+  const [rosterStatus, setRosterStatus] =
+    useState(null);
+
+
   useEffect(() => {
     loadMembers();
   }, []);
+
 
   const loadMembers = async () => {
     try {
@@ -167,16 +180,20 @@ function RosterSetup() {
     }
   };
 
+
   const handleGenerateRoster = async () => {
     if (hasErrors) {
       return;
     }
-  
+
+    // Clear the previous generation status.
+    setRosterStatus(null);
+
     const formattedRequirements = members.map(
       (member) => {
         const memberRequirements =
           requirements[member.employee_id];
-      
+
         return {
           employee_id: member.employee_id,
           a: parseDates(memberRequirements.A).map(Number),
@@ -188,7 +205,7 @@ function RosterSetup() {
         };
       }
     );
-  
+
     const request = {
       year,
       month,
@@ -196,43 +213,95 @@ function RosterSetup() {
       public_holidays: publicHolidays,
       requirements: formattedRequirements,
     };
-  
+
     try {
       // --------------------------------------------------
       // 1. Validate the roster requirements.
       // --------------------------------------------------
+
       const validationResponse = await validateRoster(
         request
       );
-    
+
       console.log(
         "Roster validation successful:",
         validationResponse
       );
-    
+
       // --------------------------------------------------
       // 2. Generate and persist the roster.
       // --------------------------------------------------
+
       const generationResponse = await generateRoster(
         request
       );
-    
+
       console.log(
         "Roster generation successful:",
         generationResponse
       );
-    } catch (error) {
-      const message =
-        error.response?.data?.detail ||
-        "Failed to generate roster.";
-    
+
+      // --------------------------------------------------
+      // 3. Store only the information needed by the
+      //    status box.
+      //
+      //    Notice that generationResponse.roster is
+      //    intentionally NOT stored/displayed here.
+      // --------------------------------------------------
+
+      setRosterStatus({
+        type: "success",
+        message:
+          generationResponse.message ||
+          "Roster generated successfully",
+        rosterId: generationResponse.roster_id,
+        rosterName: generationResponse.roster_name,
+        warnings:
+          generationResponse.warnings || [],
+        relaxedRequirements:
+          generationResponse.relaxed_requirements || [],
+      });
+
       setErrors((previous) => ({
         ...previous,
-        general: message,
+        general: "",
       }));
+    } catch (error) {
+      const statusCode = error.response?.status;
+
+      const detail = error.response?.data?.detail;
+
+      // --------------------------------------------------
+      // Duplicate roster
+      // --------------------------------------------------
+
+      if (statusCode === 409) {
+        setRosterStatus({
+          type: "duplicate",
+          message:
+            typeof detail === "string"
+              ? detail
+              : "Roster already exists.",
+        });
+
+        return;
+      }
+
+      // --------------------------------------------------
+      // Other generation errors
+      // --------------------------------------------------
+
+      const message =
+        typeof detail === "string"
+          ? detail
+          : "Failed to generate roster.";
+
+      setRosterStatus({
+        type: "error",
+        message,
+      });
     }
   };
-
 
 
   const updateMemberError = (
@@ -250,6 +319,7 @@ function RosterSetup() {
       [employeeId]: error,
     }));
   };
+
 
   const handleRequirementChange = (
     employeeId,
@@ -271,6 +341,7 @@ function RosterSetup() {
       updatedMemberRequirements
     );
   };
+
 
   const handleRequirementBlur = (
     employeeId,
@@ -297,6 +368,7 @@ function RosterSetup() {
       updatedMemberRequirements
     );
   };
+
 
   const revalidateAllMembers = (
     newYear,
@@ -326,6 +398,7 @@ function RosterSetup() {
     }));
   };
 
+
   const handleYearChange = (event) => {
     const newYear = Number(
       event.target.value
@@ -338,6 +411,7 @@ function RosterSetup() {
       month
     );
   };
+
 
   const handleMonthChange = (event) => {
     const newMonth = Number(
@@ -352,6 +426,7 @@ function RosterSetup() {
     );
   };
 
+
   const hasErrors = Object.entries(
     errors
   ).some(
@@ -359,9 +434,11 @@ function RosterSetup() {
       key !== "general" && value
   );
 
+
   if (loading) {
     return <p>Loading team members...</p>;
   }
+
 
   return (
     <div>
@@ -370,6 +447,7 @@ function RosterSetup() {
       {errors.general && (
         <p>{errors.general}</p>
       )}
+
 
       <div>
         <label>
@@ -394,6 +472,7 @@ function RosterSetup() {
         </label>
       </div>
 
+
       <div>
         <label>
           Year:
@@ -405,6 +484,7 @@ function RosterSetup() {
           />
         </label>
       </div>
+
 
       <div>
         <label>
@@ -421,6 +501,7 @@ function RosterSetup() {
           />
         </label>
       </div>
+
 
       <div>
         <label>
@@ -439,7 +520,9 @@ function RosterSetup() {
         </label>
       </div>
 
+
       <h2>Member Requirements</h2>
+
 
       <table>
         <thead>
@@ -453,6 +536,7 @@ function RosterSetup() {
             ))}
           </tr>
         </thead>
+
 
         <tbody>
           {members.map((member) => (
@@ -494,6 +578,7 @@ function RosterSetup() {
         </tbody>
       </table>
 
+
       {Object.entries(errors)
         .filter(
           ([key, value]) =>
@@ -507,6 +592,7 @@ function RosterSetup() {
           )
         )}
 
+
       <button
         disabled={
           hasErrors ||
@@ -516,8 +602,102 @@ function RosterSetup() {
       >
         Generate Roster
       </button>
+
+
+      {/* --------------------------------------------------
+          ROSTER STATUS
+          -------------------------------------------------- */}
+
+      {rosterStatus && (
+        <div>
+          <h2>Roster Status</h2>
+
+          {rosterStatus.type === "success" && (
+            <>
+              <p>
+                ✓ {rosterStatus.message}
+              </p>
+
+              <p>
+                <strong>
+                  Roster Name:
+                </strong>{" "}
+                {rosterStatus.rosterName}
+              </p>
+
+              <p>
+                <strong>
+                  Roster ID:
+                </strong>{" "}
+                {rosterStatus.rosterId}
+              </p>
+
+
+              {rosterStatus.warnings.length >
+                0 && (
+                <div>
+                  <h3>Warnings</h3>
+
+                  <ul>
+                    {rosterStatus.warnings.map(
+                      (warning, index) => (
+                        <li key={index}>
+                          {warning}
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
+              )}
+
+
+              {rosterStatus
+                .relaxedRequirements.length >
+                0 && (
+                <div>
+                  <h3>
+                    Relaxed Requirements
+                  </h3>
+
+                  <ul>
+                    {rosterStatus.relaxedRequirements.map(
+                      (requirement, index) => (
+                        <li key={index}>
+                          {typeof requirement ===
+                          "string"
+                            ? requirement
+                            : JSON.stringify(
+                                requirement
+                              )}
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+
+
+          {rosterStatus.type ===
+            "duplicate" && (
+            <p>
+              ⚠ {rosterStatus.message}
+            </p>
+          )}
+
+
+          {rosterStatus.type ===
+            "error" && (
+            <p>
+              ✕ {rosterStatus.message}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
+
 
 export default RosterSetup;
