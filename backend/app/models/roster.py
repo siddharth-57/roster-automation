@@ -38,6 +38,7 @@ class Roster(Base):
         UniqueConstraint(
             "year",
             "month",
-            name="uq_roster_year_month",
+            "group_number",
+            name="uq_roster_year_month_group",
         ),
     )

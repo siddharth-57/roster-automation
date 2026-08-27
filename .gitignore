@@ -30,3 +30,7 @@ dist/
 
 # Logs
 *.log
+
+# Some Other Files
+test_results.txt
+roster_assignments.csv

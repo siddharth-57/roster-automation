@@ -1,4 +1,3 @@
-
 .
 ├── backend
 │   ├── alembic
@@ -27,6 +26,7 @@
 │   │   │   ├── constraints.py
 │   │   │   ├── context_builder.py
 │   │   │   ├── context.py
+│   │   │   ├── orchestrator.py
 │   │   │   ├── scheduler.py
 │   │   │   └── validator.py
 │   │   ├── schemas
@@ -40,7 +40,25 @@
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── tests
-│       └── test_scheduler_constraints.py
+│       ├── test_active_requirements_implementation.py
+│       ├── test_pass1.py
+│       ├── test_pass2_orchestration.py
+│       ├── test_pass2_step1.py
+│       ├── test_pass2_step2a.py
+│       ├── test_pass2_step2b.py
+│       ├── test_pass2_step2c_commit.py
+│       ├── test_pass2_step2c_main.py
+│       ├── test_pass2_step2c_replacement.py
+│       ├── test_pass2_step2c_selection.py
+│       ├── test_pass2_step2c.py
+│       ├── test_pass2_step2d_commit.py
+│       ├── test_pass2_step2d_orchestration.py
+│       ├── test_pass2_step2d_selection.py
+│       ├── test_pass2_step2d.py
+│       ├── test_pass2_step3.py
+│       ├── test_pass3.py
+│       ├── test_pass4.py
+│       └── test_pass5.py
 ├── docker-compose.yml
 ├── Documentation.docx
 ├── frontend
@@ -69,6 +87,8 @@
 │   │       ├── roster.js
 │   │       └── teamMembers.js
 │   └── vite.config.js
-└── project_structure.txt
+├── old_scheduler.py
+├── project_structure.txt
+└── test_results.txt
 
-17 directories, 54 files
+17 directories, 75 files

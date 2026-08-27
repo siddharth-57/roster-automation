@@ -16,6 +16,7 @@ def get_previous_month_assignments(
     db: Session,
     year: int,
     month: int,
+    group_number: str,
 ) -> dict[str, dict[date, str]]:
 
     if month == 1:
@@ -29,6 +30,7 @@ def get_previous_month_assignments(
         select(Roster).where(
             Roster.year == previous_year,
             Roster.month == previous_month,
+            Roster.group_number == group_number,
         )
     )
 
