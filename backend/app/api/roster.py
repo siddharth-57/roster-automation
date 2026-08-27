@@ -1,6 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    UploadFile,
+    File,
+)
 from fastapi.responses import StreamingResponse
-
+from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -9,12 +15,14 @@ from app.services.roster_validation import validate_roster_request
 from app.services.previous_roster import get_previous_month_assignments
 from app.services.roster_persistence import save_roster
 from app.services.roster_excel import create_roster_excel
+from app.services.roster_excel import read_roster_excel
 
 from app.scheduler.context import MemberRequirement
 from app.scheduler.context_builder import build_roster_context
 from app.scheduler.orchestrator import generate_roster
 
 from app.models.roster import Roster
+from app.models.roster_assignment import RosterAssignment
 
 from app.database import get_db
 
@@ -261,3 +269,197 @@ def download_roster(
             )
         },
     )
+
+
+
+# ------------------------------------------------------
+# UPLOAD ROSTER
+# ------------------------------------------------------
+
+@router.post("/{year}/{month}/{group_number}/upload")
+def upload_roster(
+    year: int,
+    month: int,
+    group_number: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """
+    Upload an Excel roster.
+
+    If the roster does not exist, it is created.
+
+    If the roster already exists, all of its existing
+    assignments are replaced by the uploaded roster.
+    """
+
+    # --------------------------------------------------
+    # 1. Validate file type.
+    # --------------------------------------------------
+
+    if not file.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="No file was provided.",
+        )
+
+    if not file.filename.lower().endswith(".xlsx"):
+        raise HTTPException(
+            status_code=400,
+            detail="Only .xlsx Excel files are supported.",
+        )
+
+    # --------------------------------------------------
+    # 2. Read the uploaded file.
+    # --------------------------------------------------
+
+    file_contents = file.file.read()
+
+    if not file_contents:
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded file is empty.",
+        )
+
+    # --------------------------------------------------
+    # 3. Convert the Excel file into our internal
+    #    roster representation.
+    # --------------------------------------------------
+
+    try:
+        uploaded_roster = read_roster_excel(
+            db=db,
+            file_contents=file_contents,
+            year=year,
+            month=month,
+            group_number=group_number,
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to read the uploaded Excel file.",
+        )
+
+    # --------------------------------------------------
+    # 4. Generate the database roster name.
+    # --------------------------------------------------
+
+    roster_name = (
+        f"{year}-"
+        f"{month:02d}-Group-{group_number}"
+    )
+
+    # --------------------------------------------------
+    # 5. Find an existing roster.
+    # --------------------------------------------------
+
+    roster = db.scalar(
+        select(Roster).where(
+            Roster.roster_name == roster_name
+        )
+    )
+
+    try:
+
+        # --------------------------------------------------
+        # 6. Create the roster if it doesn't exist.
+        # --------------------------------------------------
+
+        if not roster:
+
+            roster = Roster(
+                roster_name=roster_name,
+                year=year,
+                month=month,
+                group_number=group_number,
+            )
+
+            db.add(roster)
+
+            db.flush()
+
+            created = True
+
+        else:
+
+            # --------------------------------------------------
+            # Existing roster → overwrite.
+            #
+            # Delete its old assignments first.
+            # --------------------------------------------------
+
+            db.query(RosterAssignment).filter(
+                RosterAssignment.roster_id
+                == roster.roster_id
+            ).delete(
+                synchronize_session=False
+            )
+
+            created = False
+
+        # --------------------------------------------------
+        # 7. Insert uploaded assignments.
+        # --------------------------------------------------
+
+        for employee_id, assignments in uploaded_roster.items():
+
+            for day, shift in assignments.items():
+
+                assignment = RosterAssignment(
+                    roster_id=roster.roster_id,
+                    employee_id=employee_id,
+                    date=date(
+                        year,
+                        month,
+                        day,
+                    ),
+                    shift=shift,
+                )
+
+                db.add(assignment)
+
+        # --------------------------------------------------
+        # 8. Commit the complete operation.
+        # --------------------------------------------------
+
+        db.commit()
+
+        db.refresh(roster)
+
+    except Exception:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "The roster could not be saved. "
+                "No changes were made to the database."
+            ),
+        )
+
+    # --------------------------------------------------
+    # 9. Return result.
+    # --------------------------------------------------
+
+    if created:
+
+        return {
+            "message": "Roster uploaded successfully",
+            "action": "created",
+            "roster_id": roster.roster_id,
+            "roster_name": roster.roster_name,
+        }
+
+    return {
+        "message": "Roster uploaded successfully",
+        "action": "overwritten",
+        "roster_id": roster.roster_id,
+        "roster_name": roster.roster_name,
+    }
