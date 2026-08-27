@@ -18,3 +18,12 @@ export const validateRoster = async (rosterRequest) => {
 
   return response.data;
 };
+
+export const generateRoster = async (rosterRequest) => {
+  const response = await axios.post(
+    `${API_BASE_URL}/rosters/generate`,
+    rosterRequest
+  );
+
+  return response.data;
+};

@@ -5,16 +5,14 @@ import { useEffect, useState } from "react";
 import {
   getActiveTeamMembers,
   validateRoster,
+  generateRoster,
 } from "../services/roster";
 
-
 const SHIFTS = ["A", "B", "C", "G", "L", "W"];
-
 
 function getDaysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
-
 
 function parseDates(value) {
   if (!value.trim()) {
@@ -27,7 +25,6 @@ function parseDates(value) {
     .filter((item) => item !== "");
 }
 
-
 function normalizeDates(value) {
   const dates = parseDates(value);
 
@@ -35,7 +32,6 @@ function normalizeDates(value) {
 
   return uniqueDates.join(",");
 }
-
 
 function validateDateInput(value, year, month) {
   if (!value.trim()) {
@@ -67,7 +63,6 @@ function validateDateInput(value, year, month) {
   return "";
 }
 
-
 function findMemberConflict(memberRequirements) {
   const datesUsed = {};
 
@@ -91,7 +86,6 @@ function findMemberConflict(memberRequirements) {
   return "";
 }
 
-
 function validateMemberRequirements(
   memberRequirements,
   year,
@@ -112,7 +106,6 @@ function validateMemberRequirements(
   return findMemberConflict(memberRequirements);
 }
 
-
 function RosterSetup() {
   const [members, setMembers] = useState([]);
 
@@ -126,19 +119,19 @@ function RosterSetup() {
 
   const [groupNumber, setGroupNumber] = useState("");
 
-  const [publicHolidays, setPublicHolidays] = useState(0);
+  const [publicHolidays, setPublicHolidays] =
+    useState(0);
 
-  const [requirements, setRequirements] = useState({});
+  const [requirements, setRequirements] =
+    useState({});
 
   const [errors, setErrors] = useState({});
 
   const [loading, setLoading] = useState(true);
 
-
   useEffect(() => {
     loadMembers();
   }, []);
-
 
   const loadMembers = async () => {
     try {
@@ -160,8 +153,12 @@ function RosterSetup() {
       });
 
       setRequirements(initialRequirements);
-
     } catch (error) {
+      console.error(
+        "Failed to load team members:",
+        error
+      );
+
       setErrors({
         general: "Failed to load team members.",
       });
@@ -170,17 +167,16 @@ function RosterSetup() {
     }
   };
 
-
   const handleGenerateRoster = async () => {
     if (hasErrors) {
       return;
     }
-
+  
     const formattedRequirements = members.map(
       (member) => {
         const memberRequirements =
           requirements[member.employee_id];
-
+      
         return {
           employee_id: member.employee_id,
           a: parseDates(memberRequirements.A).map(Number),
@@ -192,7 +188,7 @@ function RosterSetup() {
         };
       }
     );
-
+  
     const request = {
       year,
       month,
@@ -200,26 +196,43 @@ function RosterSetup() {
       public_holidays: publicHolidays,
       requirements: formattedRequirements,
     };
-
+  
     try {
-      const response = await validateRoster(request);
-
+      // --------------------------------------------------
+      // 1. Validate the roster requirements.
+      // --------------------------------------------------
+      const validationResponse = await validateRoster(
+        request
+      );
+    
       console.log(
         "Roster validation successful:",
-        response
+        validationResponse
       );
-
+    
+      // --------------------------------------------------
+      // 2. Generate and persist the roster.
+      // --------------------------------------------------
+      const generationResponse = await generateRoster(
+        request
+      );
+    
+      console.log(
+        "Roster generation successful:",
+        generationResponse
+      );
     } catch (error) {
       const message =
         error.response?.data?.detail ||
-        "Failed to validate roster.";
-
+        "Failed to generate roster.";
+    
       setErrors((previous) => ({
         ...previous,
         general: message,
       }));
     }
   };
+
 
 
   const updateMemberError = (
@@ -237,7 +250,6 @@ function RosterSetup() {
       [employeeId]: error,
     }));
   };
-
 
   const handleRequirementChange = (
     employeeId,
@@ -261,8 +273,8 @@ function RosterSetup() {
   };
 
   const handleRequirementBlur = (
-  employeeId,
-  shift
+    employeeId,
+    shift
   ) => {
     const currentValue =
       requirements[employeeId][shift];
@@ -285,7 +297,6 @@ function RosterSetup() {
       updatedMemberRequirements
     );
   };
-
 
   const revalidateAllMembers = (
     newYear,
@@ -315,9 +326,10 @@ function RosterSetup() {
     }));
   };
 
-
   const handleYearChange = (event) => {
-    const newYear = Number(event.target.value);
+    const newYear = Number(
+      event.target.value
+    );
 
     setYear(newYear);
 
@@ -327,9 +339,10 @@ function RosterSetup() {
     );
   };
 
-
   const handleMonthChange = (event) => {
-    const newMonth = Number(event.target.value);
+    const newMonth = Number(
+      event.target.value
+    );
 
     setMonth(newMonth);
 
@@ -339,27 +352,24 @@ function RosterSetup() {
     );
   };
 
-
-  const hasErrors = Object.entries(errors).some(
+  const hasErrors = Object.entries(
+    errors
+  ).some(
     ([key, value]) =>
       key !== "general" && value
   );
-
 
   if (loading) {
     return <p>Loading team members...</p>;
   }
 
-
   return (
     <div>
       <h1>Create Monthly Roster</h1>
 
-
       {errors.general && (
         <p>{errors.general}</p>
       )}
-
 
       <div>
         <label>
@@ -384,7 +394,6 @@ function RosterSetup() {
         </label>
       </div>
 
-
       <div>
         <label>
           Year:
@@ -396,7 +405,6 @@ function RosterSetup() {
           />
         </label>
       </div>
-
 
       <div>
         <label>
@@ -413,7 +421,6 @@ function RosterSetup() {
           />
         </label>
       </div>
-
 
       <div>
         <label>
@@ -432,9 +439,7 @@ function RosterSetup() {
         </label>
       </div>
 
-
       <h2>Member Requirements</h2>
-
 
       <table>
         <thead>
@@ -451,7 +456,9 @@ function RosterSetup() {
 
         <tbody>
           {members.map((member) => (
-            <tr key={member.employee_id}>
+            <tr
+              key={member.employee_id}
+            >
               <td>
                 {member.name}
               </td>
@@ -487,18 +494,18 @@ function RosterSetup() {
         </tbody>
       </table>
 
-
       {Object.entries(errors)
         .filter(
           ([key, value]) =>
             key !== "general" && value
         )
-        .map(([employeeId, error]) => (
-          <p key={employeeId}>
-            {employeeId}: {error}
-          </p>
-        ))}
-
+        .map(
+          ([employeeId, error]) => (
+            <p key={employeeId}>
+              {employeeId}: {error}
+            </p>
+          )
+        )}
 
       <button
         disabled={
@@ -509,10 +516,8 @@ function RosterSetup() {
       >
         Generate Roster
       </button>
-
     </div>
   );
 }
-
 
 export default RosterSetup;
