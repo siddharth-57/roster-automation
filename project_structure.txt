@@ -5,6 +5,7 @@
 │   │   ├── README
 │   │   ├── script.py.mako
 │   │   └── versions
+│   │       ├── 7afe0478e290_allow_multiple_roster_groups_per_month.py
 │   │       ├── d7a1b24c255b_remove_display_order_uniqueness.py
 │   │       └── e4e759ba2dab_create_roster_database_tables.py
 │   ├── alembic.ini
@@ -36,6 +37,7 @@
 │   │   └── services
 │   │       ├── __init__.py
 │   │       ├── previous_roster.py
+│   │       ├── roster_persistence.py
 │   │       └── roster_validation.py
 │   ├── Dockerfile
 │   ├── requirements.txt
@@ -89,6 +91,7 @@
 │   └── vite.config.js
 ├── old_scheduler.py
 ├── project_structure.txt
+├── roster_assignments.csv
 └── test_results.txt
 
-17 directories, 75 files
+17 directories, 78 files

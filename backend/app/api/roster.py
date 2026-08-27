@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -6,6 +8,7 @@ from app.schemas.roster import RosterGenerationRequest
 from app.services.roster_validation import validate_roster_request
 from app.services.previous_roster import get_previous_month_assignments
 from app.services.roster_persistence import save_roster
+from app.services.roster_excel import create_roster_excel
 
 from app.scheduler.context import MemberRequirement
 from app.scheduler.context_builder import build_roster_context
@@ -186,3 +189,75 @@ def generate_roster_endpoint(
         "warnings": scheduler.warnings,
         "relaxed_requirements": scheduler.relaxed_requirements,
     }
+
+
+# ------------------------------------------------------
+# DOWNLOAD ROSTER
+# ------------------------------------------------------
+
+@router.get("/{year}/{month}/{group_number}/download")
+def download_roster(
+    year: int,
+    month: int,
+    group_number: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Download an existing roster as an Excel file.
+    """
+
+    # --------------------------------------------------
+    # 1. Find the roster.
+    # --------------------------------------------------
+
+    roster_name = (
+        f"{year}-"
+        f"{month:02d}-Group-{group_number}"
+    )
+
+    roster = db.scalar(
+        select(Roster).where(
+            Roster.roster_name == roster_name
+        )
+    )
+
+    # --------------------------------------------------
+    # 2. Roster doesn't exist.
+    # --------------------------------------------------
+
+    if not roster:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Roster '{roster_name}' "
+                f"does not exist."
+            ),
+        )
+
+    # --------------------------------------------------
+    # 3. Generate the Excel file.
+    # --------------------------------------------------
+
+    excel_file = create_roster_excel(
+        db=db,
+        roster=roster,
+    )
+
+    # --------------------------------------------------
+    # 4. Return the Excel file.
+    # --------------------------------------------------
+
+    filename = f"{roster_name}.xlsx"
+
+    return StreamingResponse(
+        excel_file,
+        media_type=(
+            "application/vnd.openxmlformats-"
+            "officedocument.spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{filename}"'
+            )
+        },
+    )
