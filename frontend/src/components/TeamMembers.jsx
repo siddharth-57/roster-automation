@@ -146,52 +146,6 @@ function TeamMembers() {
       </table>
 
 
-      <h2>Add Member</h2>
-
-
-      <form onSubmit={handleAddMember}>
-        <div>
-          <label>
-            Employee ID:
-
-            <input
-              type="text"
-              value={employeeId}
-              onChange={(event) =>
-                setEmployeeId(
-                  event.target.value
-                )
-              }
-              required
-            />
-          </label>
-        </div>
-
-
-        <div>
-          <label>
-            Name:
-
-            <input
-              type="text"
-              value={name}
-              onChange={(event) =>
-                setName(
-                  event.target.value
-                )
-              }
-              required
-            />
-          </label>
-        </div>
-
-
-        <button type="submit">
-          Add Member
-        </button>
-      </form>
-
-
       {memberToDeactivate && (
         <div>
           <h2>
@@ -237,6 +191,51 @@ function TeamMembers() {
           </button>
         </div>
       )}
+
+      <h2>Add Member</h2>
+
+      <form onSubmit={handleAddMember}>
+        <div>
+          <label>
+            Employee ID:
+
+            <input
+              type="text"
+              value={employeeId}
+              onChange={(event) =>
+                setEmployeeId(
+                  event.target.value
+                )
+              }
+              required
+            />
+          </label>
+        </div>
+
+
+        <div>
+          <label>
+            Name:
+
+            <input
+              type="text"
+              value={name}
+              onChange={(event) =>
+                setName(
+                  event.target.value
+                )
+              }
+              required
+            />
+          </label>
+        </div>
+
+
+        <button type="submit">
+          Add Member
+        </button>
+      </form>
+
     </div>
   );
 }

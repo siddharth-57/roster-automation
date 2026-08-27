@@ -6,6 +6,8 @@ import {
   getActiveTeamMembers,
   validateRoster,
   generateRoster,
+  downloadRoster,
+  uploadRoster,
 } from "../services/roster";
 
 
@@ -44,7 +46,11 @@ function validateDateInput(value, year, month) {
   }
 
   const dates = parseDates(value);
-  const daysInMonth = getDaysInMonth(year, month);
+
+  const daysInMonth = getDaysInMonth(
+    year,
+    month
+  );
 
   const invalidValues = [];
 
@@ -115,6 +121,10 @@ function validateMemberRequirements(
 
 
 function RosterSetup() {
+  // --------------------------------------------------
+  // CREATE ROSTER STATE
+  // --------------------------------------------------
+
   const [members, setMembers] = useState([]);
 
   const [year, setYear] = useState(
@@ -125,7 +135,8 @@ function RosterSetup() {
     new Date().getMonth() + 1
   );
 
-  const [groupNumber, setGroupNumber] = useState("");
+  const [groupNumber, setGroupNumber] =
+    useState("");
 
   const [publicHolidays, setPublicHolidays] =
     useState(0);
@@ -141,6 +152,38 @@ function RosterSetup() {
     useState(null);
 
 
+  // --------------------------------------------------
+  // DOWNLOAD / UPLOAD ROSTER STATE
+  // --------------------------------------------------
+
+  const [fileMonth, setFileMonth] = useState(
+    new Date().getMonth() + 1
+  );
+
+  const [fileYear, setFileYear] = useState(
+    new Date().getFullYear()
+  );
+
+  const [fileGroupNumber, setFileGroupNumber] =
+    useState("");
+
+  const [selectedFile, setSelectedFile] =
+    useState(null);
+
+  const [fileStatus, setFileStatus] =
+    useState(null);
+
+  const [uploading, setUploading] =
+    useState(false);
+
+  const [downloading, setDownloading] =
+    useState(false);
+
+
+  // --------------------------------------------------
+  // LOAD TEAM MEMBERS
+  // --------------------------------------------------
+
   useEffect(() => {
     loadMembers();
   }, []);
@@ -155,7 +198,9 @@ function RosterSetup() {
       const initialRequirements = {};
 
       data.forEach((member) => {
-        initialRequirements[member.employee_id] = {
+        initialRequirements[
+          member.employee_id
+        ] = {
           A: "",
           B: "",
           C: "",
@@ -166,6 +211,7 @@ function RosterSetup() {
       });
 
       setRequirements(initialRequirements);
+
     } catch (error) {
       console.error(
         "Failed to load team members:",
@@ -173,103 +219,148 @@ function RosterSetup() {
       );
 
       setErrors({
-        general: "Failed to load team members.",
+        general:
+          "Failed to load team members.",
       });
+
     } finally {
       setLoading(false);
     }
   };
 
 
+  // --------------------------------------------------
+  // GENERATE ROSTER
+  // --------------------------------------------------
+
   const handleGenerateRoster = async () => {
     if (hasErrors) {
       return;
     }
 
-    // Clear the previous generation status.
     setRosterStatus(null);
 
-    const formattedRequirements = members.map(
-      (member) => {
+    const formattedRequirements =
+      members.map((member) => {
         const memberRequirements =
-          requirements[member.employee_id];
+          requirements[
+            member.employee_id
+          ];
 
         return {
-          employee_id: member.employee_id,
-          a: parseDates(memberRequirements.A).map(Number),
-          b: parseDates(memberRequirements.B).map(Number),
-          c: parseDates(memberRequirements.C).map(Number),
-          g: parseDates(memberRequirements.G).map(Number),
-          l: parseDates(memberRequirements.L).map(Number),
-          w: parseDates(memberRequirements.W).map(Number),
+          employee_id:
+            member.employee_id,
+
+          a: parseDates(
+            memberRequirements.A
+          ).map(Number),
+
+          b: parseDates(
+            memberRequirements.B
+          ).map(Number),
+
+          c: parseDates(
+            memberRequirements.C
+          ).map(Number),
+
+          g: parseDates(
+            memberRequirements.G
+          ).map(Number),
+
+          l: parseDates(
+            memberRequirements.L
+          ).map(Number),
+
+          w: parseDates(
+            memberRequirements.W
+          ).map(Number),
         };
-      }
-    );
+      });
+
 
     const request = {
       year,
       month,
-      group_number: groupNumber.trim(),
-      public_holidays: publicHolidays,
-      requirements: formattedRequirements,
+      group_number:
+        groupNumber.trim(),
+      public_holidays:
+        publicHolidays,
+      requirements:
+        formattedRequirements,
     };
+
 
     try {
       // --------------------------------------------------
-      // 1. Validate the roster requirements.
+      // 1. Validate roster requirements
       // --------------------------------------------------
 
-      const validationResponse = await validateRoster(
-        request
-      );
+      const validationResponse =
+        await validateRoster(
+          request
+        );
 
       console.log(
         "Roster validation successful:",
         validationResponse
       );
 
+
       // --------------------------------------------------
-      // 2. Generate and persist the roster.
+      // 2. Generate and persist roster
       // --------------------------------------------------
 
-      const generationResponse = await generateRoster(
-        request
-      );
+      const generationResponse =
+        await generateRoster(
+          request
+        );
 
       console.log(
         "Roster generation successful:",
         generationResponse
       );
 
+
       // --------------------------------------------------
-      // 3. Store only the information needed by the
-      //    status box.
-      //
-      //    Notice that generationResponse.roster is
-      //    intentionally NOT stored/displayed here.
+      // 3. Store status information
       // --------------------------------------------------
 
       setRosterStatus({
         type: "success",
+
         message:
           generationResponse.message ||
           "Roster generated successfully",
-        rosterId: generationResponse.roster_id,
-        rosterName: generationResponse.roster_name,
+
+        rosterId:
+          generationResponse.roster_id,
+
+        rosterName:
+          generationResponse.roster_name,
+
         warnings:
-          generationResponse.warnings || [],
+          generationResponse.warnings ||
+          [],
+
         relaxedRequirements:
-          generationResponse.relaxed_requirements || [],
+          generationResponse
+            .relaxed_requirements ||
+          [],
       });
+
 
       setErrors((previous) => ({
         ...previous,
         general: "",
       }));
-    } catch (error) {
-      const statusCode = error.response?.status;
 
-      const detail = error.response?.data?.detail;
+    } catch (error) {
+      const statusCode =
+        error.response?.status;
+
+      const detail =
+        error.response?.data?.detail;
+
 
       // --------------------------------------------------
       // Duplicate roster
@@ -278,6 +369,7 @@ function RosterSetup() {
       if (statusCode === 409) {
         setRosterStatus({
           type: "duplicate",
+
           message:
             typeof detail === "string"
               ? detail
@@ -286,6 +378,7 @@ function RosterSetup() {
 
         return;
       }
+
 
       // --------------------------------------------------
       // Other generation errors
@@ -296,6 +389,7 @@ function RosterSetup() {
           ? detail
           : "Failed to generate roster.";
 
+
       setRosterStatus({
         type: "error",
         message,
@@ -304,15 +398,20 @@ function RosterSetup() {
   };
 
 
+  // --------------------------------------------------
+  // REQUIREMENT VALIDATION
+  // --------------------------------------------------
+
   const updateMemberError = (
     employeeId,
     updatedRequirements
   ) => {
-    const error = validateMemberRequirements(
-      updatedRequirements,
-      year,
-      month
-    );
+    const error =
+      validateMemberRequirements(
+        updatedRequirements,
+        year,
+        month
+      );
 
     setErrors((previous) => ({
       ...previous,
@@ -333,7 +432,8 @@ function RosterSetup() {
 
     setRequirements((previous) => ({
       ...previous,
-      [employeeId]: updatedMemberRequirements,
+      [employeeId]:
+        updatedMemberRequirements,
     }));
 
     updateMemberError(
@@ -348,7 +448,9 @@ function RosterSetup() {
     shift
   ) => {
     const currentValue =
-      requirements[employeeId][shift];
+      requirements[
+        employeeId
+      ][shift];
 
     const normalizedValue =
       normalizeDates(currentValue);
@@ -360,7 +462,8 @@ function RosterSetup() {
 
     setRequirements((previous) => ({
       ...previous,
-      [employeeId]: updatedMemberRequirements,
+      [employeeId]:
+        updatedMemberRequirements,
     }));
 
     updateMemberError(
@@ -378,18 +481,21 @@ function RosterSetup() {
 
     members.forEach((member) => {
       const memberRequirements =
-        requirements[member.employee_id];
+        requirements[
+          member.employee_id
+        ];
 
       if (!memberRequirements) {
         return;
       }
 
-      updatedErrors[member.employee_id] =
-        validateMemberRequirements(
-          memberRequirements,
-          newYear,
-          newMonth
-        );
+      updatedErrors[
+        member.employee_id
+      ] = validateMemberRequirements(
+        memberRequirements,
+        newYear,
+        newMonth
+      );
     });
 
     setErrors((previous) => ({
@@ -399,7 +505,9 @@ function RosterSetup() {
   };
 
 
-  const handleYearChange = (event) => {
+  const handleYearChange = (
+    event
+  ) => {
     const newYear = Number(
       event.target.value
     );
@@ -413,7 +521,9 @@ function RosterSetup() {
   };
 
 
-  const handleMonthChange = (event) => {
+  const handleMonthChange = (
+    event
+  ) => {
     const newMonth = Number(
       event.target.value
     );
@@ -427,25 +537,303 @@ function RosterSetup() {
   };
 
 
-  const hasErrors = Object.entries(
-    errors
-  ).some(
-    ([key, value]) =>
-      key !== "general" && value
-  );
+  const hasErrors =
+    Object.entries(errors).some(
+      ([key, value]) =>
+        key !== "general" && value
+    );
 
+
+  // --------------------------------------------------
+  // DOWNLOAD ROSTER
+  // --------------------------------------------------
+
+  const handleDownloadRoster =
+    async () => {
+
+      setFileStatus(null);
+
+      if (
+        !fileGroupNumber.trim()
+      ) {
+        setFileStatus({
+          type: "error",
+          message:
+            "Please enter a group number.",
+        });
+
+        return;
+      }
+
+      try {
+        setDownloading(true);
+
+        const response =
+          await downloadRoster(
+            fileYear,
+            fileMonth,
+            fileGroupNumber.trim()
+          );
+
+
+        // --------------------------------------------------
+        // Create downloadable browser file
+        // --------------------------------------------------
+
+        const blob =
+          new Blob(
+            [response.data],
+            {
+              type:
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            }
+          );
+
+        const url =
+          window.URL.createObjectURL(
+            blob
+          );
+
+        const link =
+          document.createElement(
+            "a"
+          );
+
+        link.href = url;
+
+        link.download =
+          `${fileYear}-${String(
+            fileMonth
+          ).padStart(2, "0")}-Group-${fileGroupNumber.trim()}.xlsx`;
+
+        document.body.appendChild(
+          link
+        );
+
+        link.click();
+
+        link.remove();
+
+        window.URL.revokeObjectURL(
+          url
+        );
+
+
+        setFileStatus({
+          type: "success",
+          message:
+            "Roster downloaded successfully.",
+        });
+
+      } catch (error) {
+        const statusCode =
+          error.response?.status;
+
+        const detail =
+          error.response?.data?.detail;
+
+
+        if (statusCode === 404) {
+          setFileStatus({
+            type: "error",
+            message:
+              typeof detail === "string"
+                ? detail
+                : "Roster does not exist.",
+          });
+
+          return;
+        }
+
+
+        setFileStatus({
+          type: "error",
+          message:
+            typeof detail === "string"
+              ? detail
+              : "Failed to download roster.",
+        });
+
+      } finally {
+        setDownloading(false);
+      }
+    };
+
+
+  // --------------------------------------------------
+  // UPLOAD ROSTER
+  // --------------------------------------------------
+
+  const handleUploadRoster =
+    async () => {
+
+      setFileStatus(null);
+
+
+      if (
+        !fileGroupNumber.trim()
+      ) {
+        setFileStatus({
+          type: "error",
+          message:
+            "Please enter a group number.",
+        });
+
+        return;
+      }
+
+
+      if (!selectedFile) {
+        setFileStatus({
+          type: "error",
+          message:
+            "Please select an Excel file.",
+        });
+
+        return;
+      }
+
+
+      if (
+        !selectedFile.name
+          .toLowerCase()
+          .endsWith(".xlsx")
+      ) {
+        setFileStatus({
+          type: "error",
+          message:
+            "Please select an .xlsx Excel file.",
+        });
+
+        return;
+      }
+
+
+      try {
+        setUploading(true);
+
+
+        const response =
+          await uploadRoster(
+            fileYear,
+            fileMonth,
+            fileGroupNumber.trim(),
+            selectedFile
+          );
+
+
+        if (
+          response.action === "created"
+        ) {
+          setFileStatus({
+            type: "success",
+            message:
+              `Roster ${response.roster_name} uploaded successfully and created in the database.`,
+          });
+
+        } else if (
+          response.action ===
+          "overwritten"
+        ) {
+          setFileStatus({
+            type: "success",
+            message:
+              `Roster ${response.roster_name} uploaded successfully and the existing roster was overwritten.`,
+          });
+
+        } else {
+          setFileStatus({
+            type: "success",
+            message:
+              response.message ||
+              "Roster uploaded successfully.",
+          });
+        }
+
+
+        // Clear selected file after
+        // successful upload.
+        setSelectedFile(null);
+
+
+        // Reset the file input.
+        const fileInput =
+          document.getElementById(
+            "roster-upload-file"
+          );
+
+        if (fileInput) {
+          fileInput.value = "";
+        }
+
+      } catch (error) {
+        const statusCode =
+          error.response?.status;
+
+        const detail =
+          error.response?.data?.detail;
+
+
+        if (statusCode === 400) {
+          setFileStatus({
+            type: "error",
+            message:
+              typeof detail === "string"
+                ? detail
+                : "The roster could not be uploaded.",
+          });
+
+          return;
+        }
+
+
+        setFileStatus({
+          type: "error",
+          message:
+            typeof detail === "string"
+              ? detail
+              : "Failed to upload roster.",
+        });
+
+      } finally {
+        setUploading(false);
+      }
+    };
+
+
+  // --------------------------------------------------
+  // LOADING
+  // --------------------------------------------------
 
   if (loading) {
-    return <p>Loading team members...</p>;
+    return (
+      <p>
+        Loading team members...
+      </p>
+    );
   }
 
 
+  // --------------------------------------------------
+  // RENDER
+  // --------------------------------------------------
+
   return (
     <div>
-      <h1>Create Monthly Roster</h1>
+
+      {/* ==================================================
+          CREATE MONTHLY ROSTER
+          ================================================== */}
+
+      <h1>
+        Create Monthly Roster
+      </h1>
+
 
       {errors.general && (
-        <p>{errors.general}</p>
+        <p>
+          {errors.general}
+        </p>
       )}
 
 
@@ -455,19 +843,24 @@ function RosterSetup() {
 
           <select
             value={month}
-            onChange={handleMonthChange}
+            onChange={
+              handleMonthChange
+            }
           >
             {Array.from(
               { length: 12 },
-              (_, index) => index + 1
-            ).map((monthNumber) => (
-              <option
-                key={monthNumber}
-                value={monthNumber}
-              >
-                {monthNumber}
-              </option>
-            ))}
+              (_, index) =>
+                index + 1
+            ).map(
+              (monthNumber) => (
+                <option
+                  key={monthNumber}
+                  value={monthNumber}
+                >
+                  {monthNumber}
+                </option>
+              )
+            )}
           </select>
         </label>
       </div>
@@ -480,7 +873,9 @@ function RosterSetup() {
           <input
             type="number"
             value={year}
-            onChange={handleYearChange}
+            onChange={
+              handleYearChange
+            }
           />
         </label>
       </div>
@@ -510,10 +905,14 @@ function RosterSetup() {
           <input
             type="number"
             min="0"
-            value={publicHolidays}
+            value={
+              publicHolidays
+            }
             onChange={(event) =>
               setPublicHolidays(
-                Number(event.target.value)
+                Number(
+                  event.target.value
+                )
               )
             }
           />
@@ -521,73 +920,104 @@ function RosterSetup() {
       </div>
 
 
-      <h2>Member Requirements</h2>
+      <h2>
+        Member Requirements
+      </h2>
 
 
       <table>
         <thead>
           <tr>
-            <th>Member</th>
+            <th>
+              Member
+            </th>
 
-            {SHIFTS.map((shift) => (
-              <th key={shift}>
-                {shift}
-              </th>
-            ))}
+            {SHIFTS.map(
+              (shift) => (
+                <th
+                  key={shift}
+                >
+                  {shift}
+                </th>
+              )
+            )}
           </tr>
         </thead>
 
 
         <tbody>
-          {members.map((member) => (
-            <tr
-              key={member.employee_id}
-            >
-              <td>
-                {member.name}
-              </td>
-
-              {SHIFTS.map((shift) => (
-                <td key={shift}>
-                  <input
-                    type="text"
-                    placeholder="e.g. 2,5,8"
-                    value={
-                      requirements[
-                        member.employee_id
-                      ]?.[shift] || ""
-                    }
-                    onChange={(event) =>
-                      handleRequirementChange(
-                        member.employee_id,
-                        shift,
-                        event.target.value
-                      )
-                    }
-                    onBlur={() =>
-                      handleRequirementBlur(
-                        member.employee_id,
-                        shift
-                      )
-                    }
-                  />
+          {members.map(
+            (member) => (
+              <tr
+                key={
+                  member.employee_id
+                }
+              >
+                <td>
+                  {member.name}
                 </td>
-              ))}
-            </tr>
-          ))}
+
+                {SHIFTS.map(
+                  (shift) => (
+                    <td
+                      key={shift}
+                    >
+                      <input
+                        type="text"
+                        placeholder="e.g. 2,5,8"
+                        value={
+                          requirements[
+                            member.employee_id
+                          ]?.[
+                            shift
+                          ] || ""
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          handleRequirementChange(
+                            member.employee_id,
+                            shift,
+                            event
+                              .target
+                              .value
+                          )
+                        }
+                        onBlur={() =>
+                          handleRequirementBlur(
+                            member.employee_id,
+                            shift
+                          )
+                        }
+                      />
+                    </td>
+                  )
+                )}
+              </tr>
+            )
+          )}
         </tbody>
       </table>
 
 
-      {Object.entries(errors)
+      {Object.entries(
+        errors
+      )
         .filter(
           ([key, value]) =>
-            key !== "general" && value
+            key !== "general" &&
+            value
         )
         .map(
-          ([employeeId, error]) => (
-            <p key={employeeId}>
-              {employeeId}: {error}
+          ([
+            employeeId,
+            error,
+          ]) => (
+            <p
+              key={employeeId}
+            >
+              {employeeId}:{" "}
+              {error}
             </p>
           )
         )}
@@ -598,56 +1028,65 @@ function RosterSetup() {
           hasErrors ||
           !groupNumber.trim()
         }
-        onClick={handleGenerateRoster}
+        onClick={
+          handleGenerateRoster
+        }
       >
         Generate Roster
       </button>
 
 
-      {/* --------------------------------------------------
+      {/* ==================================================
           ROSTER STATUS
-          -------------------------------------------------- */}
+          ================================================== */}
 
       {rosterStatus && (
         <div
           className={`roster-status-box ${rosterStatus.type}`}
         >
+
           <div className="roster-status-header">
 
-            {rosterStatus.type === "success" && (
+            {rosterStatus.type ===
+              "success" && (
               <>
                 <span className="status-icon">
                   ✓
                 </span>
 
                 <h2>
-                  Roster Generated Successfully
+                  Roster Generated
+                  Successfully
                 </h2>
               </>
             )}
 
 
-            {rosterStatus.type === "duplicate" && (
+            {rosterStatus.type ===
+              "duplicate" && (
               <>
                 <span className="status-icon">
                   ⚠
                 </span>
 
                 <h2>
-                  Roster Already Exists
+                  Roster Already
+                  Exists
                 </h2>
               </>
             )}
 
 
-            {rosterStatus.type === "error" && (
+            {rosterStatus.type ===
+              "error" && (
               <>
                 <span className="status-icon">
                   ✕
                 </span>
 
                 <h2>
-                  Roster Generation Failed
+                  Roster Generation
+                  Failed
                 </h2>
               </>
             )}
@@ -657,12 +1096,13 @@ function RosterSetup() {
 
           <div className="roster-status-content">
 
-            {/* SUCCESS */}
-
-            {rosterStatus.type === "success" && (
+            {rosterStatus.type ===
+              "success" && (
               <>
                 <p className="status-message">
-                  {rosterStatus.message}
+                  {
+                    rosterStatus.message
+                  }
                 </p>
 
 
@@ -674,7 +1114,9 @@ function RosterSetup() {
                     </span>
 
                     <span className="detail-value">
-                      {rosterStatus.rosterName}
+                      {
+                        rosterStatus.rosterName
+                      }
                     </span>
                   </div>
 
@@ -685,16 +1127,17 @@ function RosterSetup() {
                     </span>
 
                     <span className="detail-value">
-                      {rosterStatus.rosterId}
+                      {
+                        rosterStatus.rosterId
+                      }
                     </span>
                   </div>
 
                 </div>
 
 
-                {/* WARNINGS */}
-
-                {rosterStatus.warnings.length > 0 && (
+                {rosterStatus.warnings.length >
+                  0 && (
                   <div className="status-section warnings-section">
 
                     <h3>
@@ -702,79 +1145,302 @@ function RosterSetup() {
                     </h3>
 
                     <ul>
-                      {rosterStatus.warnings.map(
-                        (warning, index) => (
-                          <li key={index}>
-                            {warning}
-                          </li>
+                      {
+                        rosterStatus.warnings.map(
+                          (
+                            warning,
+                            index
+                          ) => (
+                            <li
+                              key={
+                                index
+                              }
+                            >
+                              {
+                                warning
+                              }
+                            </li>
+                          )
                         )
-                      )}
+                      }
                     </ul>
 
                   </div>
                 )}
 
 
-                {/* RELAXED REQUIREMENTS */}
-
-                {rosterStatus.relaxedRequirements.length > 0 && (
+                {rosterStatus.relaxedRequirements.length >
+                  0 && (
                   <div className="status-section relaxed-section">
 
                     <h3>
-                      Relaxed Requirements
+                      Relaxed
+                      Requirements
                     </h3>
 
                     <ul>
-                      {rosterStatus.relaxedRequirements.map(
-                        (requirement, index) => (
-                          <li key={index}>
-                            {typeof requirement === "string"
-                              ? requirement
-                              : JSON.stringify(
-                                  requirement
-                                )}
-                          </li>
+                      {
+                        rosterStatus.relaxedRequirements.map(
+                          (
+                            requirement,
+                            index
+                          ) => (
+                            <li
+                              key={
+                                index
+                              }
+                            >
+                              {
+                                typeof requirement ===
+                                "string"
+                                  ? requirement
+                                  : JSON.stringify(
+                                      requirement
+                                    )
+                              }
+                            </li>
+                          )
                         )
-                      )}
+                      }
                     </ul>
 
                   </div>
                 )}
 
 
-                {/* NO WARNINGS / RELAXED REQUIREMENTS */}
-
-                {rosterStatus.warnings.length === 0 &&
-                  rosterStatus.relaxedRequirements.length === 0 && (
+                {
+                  rosterStatus.warnings
+                    .length ===
+                    0 &&
+                  rosterStatus.relaxedRequirements
+                    .length ===
+                    0 && (
                     <p className="status-clean">
-                      No warnings or relaxed requirements.
+                      No warnings or
+                      relaxed
+                      requirements.
                     </p>
-                  )}
+                  )
+                }
 
               </>
             )}
 
 
-            {/* DUPLICATE */}
-
-            {rosterStatus.type === "duplicate" && (
+            {rosterStatus.type ===
+              "duplicate" && (
               <p className="status-message">
-                {rosterStatus.message}
+                {
+                  rosterStatus.message
+                }
               </p>
             )}
 
 
-            {/* ERROR */}
-
-            {rosterStatus.type === "error" && (
+            {rosterStatus.type ===
+              "error" && (
               <p className="status-message">
-                {rosterStatus.message}
+                {
+                  rosterStatus.message
+                }
               </p>
             )}
 
           </div>
         </div>
       )}
+
+
+      {/* ==================================================
+          DOWNLOAD / UPLOAD ROSTER
+          ================================================== */}
+
+      <hr />
+
+
+      <h1>
+        Download / Upload Roster
+      </h1>
+
+
+      <div>
+        <label>
+          Month:
+
+          <select
+            value={fileMonth}
+            onChange={(event) =>
+              setFileMonth(
+                Number(
+                  event.target.value
+                )
+              )
+            }
+          >
+            {Array.from(
+              { length: 12 },
+              (_, index) =>
+                index + 1
+            ).map(
+              (monthNumber) => (
+                <option
+                  key={monthNumber}
+                  value={monthNumber}
+                >
+                  {monthNumber}
+                </option>
+              )
+            )}
+          </select>
+        </label>
+      </div>
+
+
+      <div>
+        <label>
+          Year:
+
+          <input
+            type="number"
+            value={fileYear}
+            onChange={(event) =>
+              setFileYear(
+                Number(
+                  event.target.value
+                )
+              )
+            }
+          />
+        </label>
+      </div>
+
+
+      <div>
+        <label>
+          Group Number:
+
+          <input
+            type="text"
+            value={
+              fileGroupNumber
+            }
+            onChange={(event) =>
+              setFileGroupNumber(
+                event.target.value
+              )
+            }
+          />
+        </label>
+      </div>
+
+
+      <div>
+        <label>
+          Excel File:
+
+          <input
+            id="roster-upload-file"
+            type="file"
+            accept=".xlsx"
+            onChange={(event) =>
+              setSelectedFile(
+                event.target.files?.[0] ||
+                null
+              )
+            }
+          />
+        </label>
+      </div>
+
+
+      <div>
+
+        <button
+          onClick={
+            handleUploadRoster
+          }
+          disabled={
+            uploading ||
+            downloading
+          }
+        >
+          {uploading
+            ? "Uploading..."
+            : "Upload"}
+        </button>
+
+
+        <button
+          onClick={
+            handleDownloadRoster
+          }
+          disabled={
+            uploading ||
+            downloading
+          }
+        >
+          {downloading
+            ? "Downloading..."
+            : "Download"}
+        </button>
+
+      </div>
+
+
+      {/* ==================================================
+          FILE STATUS
+          ================================================== */}
+
+      {fileStatus && (
+        <div
+          className={`roster-status-box ${fileStatus.type}`}
+        >
+
+          <div className="roster-status-header">
+
+            {fileStatus.type ===
+              "success" && (
+              <>
+                <span className="status-icon">
+                  ✓
+                </span>
+
+                <h2>
+                  Success
+                </h2>
+              </>
+            )}
+
+
+            {fileStatus.type ===
+              "error" && (
+              <>
+                <span className="status-icon">
+                  ✕
+                </span>
+
+                <h2>
+                  Operation Failed
+                </h2>
+              </>
+            )}
+
+          </div>
+
+
+          <div className="roster-status-content">
+
+            <p className="status-message">
+              {
+                fileStatus.message
+              }
+            </p>
+
+          </div>
+
+        </div>
+      )}
+
     </div>
   );
 }
