@@ -27,6 +27,7 @@ function TeamMembers() {
 
       setMembers(data);
       setError("");
+
     } catch (error) {
       setError("Failed to load team members.");
     }
@@ -53,6 +54,7 @@ function TeamMembers() {
       setName("");
 
       await loadMembers();
+
     } catch (error) {
       const message =
         error.response?.data?.detail ||
@@ -78,6 +80,7 @@ function TeamMembers() {
       setMemberToDeactivate(null);
 
       await loadMembers();
+
     } catch (error) {
       const message =
         error.response?.data?.detail ||
@@ -94,60 +97,121 @@ function TeamMembers() {
 
 
   return (
-    <div>
-      <h1>Team Members</h1>
+    <section className="app-section">
 
+      {/* ==================================================
+          TEAM MEMBERS HEADER
+          ================================================== */}
+
+      <div className="app-section-header">
+
+        <h1>
+          Team Members
+        </h1>
+
+        <p>
+          Manage active team members and
+          their roster positions.
+        </p>
+
+      </div>
+
+
+      {/* ==================================================
+          ERROR
+          ================================================== */}
 
       {error && (
-        <p>
+        <p className="form-error general-error">
           {error}
         </p>
       )}
 
 
-      <table>
-        <thead>
-          <tr>
-            <th>Position</th>
-            <th>Employee ID</th>
-            <th>Name</th>
-            <th>Action</th>
-          </tr>
-        </thead>
+      {/* ==================================================
+          TEAM MEMBERS TABLE
+          ================================================== */}
 
+      <div className="members-table-container">
 
-        <tbody>
-          {members.map((member) => (
-            <tr key={member.employee_id}>
-              <td>
-                {member.display_order}
-              </td>
+        <table className="members-table">
 
-              <td>
-                {member.employee_id}
-              </td>
+          <thead>
+            <tr>
 
-              <td>
-                {member.name}
-              </td>
+              <th>
+                Position
+              </th>
 
-              <td>
-                <button
-                  onClick={() =>
-                    setMemberToDeactivate(member)
-                  }
-                >
-                  Deactivate
-                </button>
-              </td>
+              <th>
+                Employee ID
+              </th>
+
+              <th>
+                Name
+              </th>
+
+              <th>
+                Action
+              </th>
+
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
 
+
+          <tbody>
+
+            {members.map((member) => (
+              <tr
+                key={
+                  member.employee_id
+                }
+              >
+
+                <td>
+                  {member.display_order}
+                </td>
+
+                <td>
+                  {member.employee_id}
+                </td>
+
+                <td>
+                  {member.name}
+                </td>
+
+                <td>
+
+                  <button
+                    className="danger-button"
+                    onClick={() =>
+                      setMemberToDeactivate(
+                        member
+                      )
+                    }
+                  >
+                    Deactivate
+                  </button>
+
+                </td>
+
+              </tr>
+            ))}
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+
+      {/* ==================================================
+          DEACTIVATION CONFIRMATION
+          ================================================== */}
 
       {memberToDeactivate && (
-        <div>
+        <div className="deactivate-confirmation">
+
           <h2>
             Deactivate Employee
           </h2>
@@ -157,86 +221,154 @@ function TeamMembers() {
             deactivate this employee?
           </p>
 
-          <p>
-            <strong>
-              Employee ID:
-            </strong>{" "}
-            {memberToDeactivate.employee_id}
-          </p>
 
-          <p>
-            <strong>
-              Name:
-            </strong>{" "}
-            {memberToDeactivate.name}
-          </p>
+          <div className="deactivate-details">
 
-          <p>
-            <strong>
-              Display Order:
-            </strong>{" "}
-            {memberToDeactivate.display_order}
-          </p>
+            <div className="deactivate-detail">
 
-          <button
-            onClick={handleDeactivate}
-          >
-            I'm Sure
-          </button>
+              <span className="deactivate-detail-label">
+                Employee ID
+              </span>
 
-          <button
-            onClick={handleCancelDeactivate}
-          >
-            No
-          </button>
+              <span className="deactivate-detail-value">
+                {
+                  memberToDeactivate.employee_id
+                }
+              </span>
+
+            </div>
+
+
+            <div className="deactivate-detail">
+
+              <span className="deactivate-detail-label">
+                Name
+              </span>
+
+              <span className="deactivate-detail-value">
+                {
+                  memberToDeactivate.name
+                }
+              </span>
+
+            </div>
+
+
+            <div className="deactivate-detail">
+
+              <span className="deactivate-detail-label">
+                Display Order
+              </span>
+
+              <span className="deactivate-detail-value">
+                {
+                  memberToDeactivate.display_order
+                }
+              </span>
+
+            </div>
+
+          </div>
+
+
+          <div className="action-row">
+
+            <button
+              className="danger-button"
+              onClick={
+                handleDeactivate
+              }
+            >
+              I'm Sure
+            </button>
+
+            <button
+              className="secondary-button"
+              onClick={
+                handleCancelDeactivate
+              }
+            >
+              No
+            </button>
+
+          </div>
+
         </div>
       )}
 
-      <h2>Add Member</h2>
 
-      <form onSubmit={handleAddMember}>
-        <div>
-          <label>
-            Employee ID:
+      {/* ==================================================
+          ADD MEMBER
+          ================================================== */}
 
-            <input
-              type="text"
-              value={employeeId}
-              onChange={(event) =>
-                setEmployeeId(
-                  event.target.value
-                )
-              }
-              required
-            />
-          </label>
-        </div>
+      <div className="add-member-section">
 
-
-        <div>
-          <label>
-            Name:
-
-            <input
-              type="text"
-              value={name}
-              onChange={(event) =>
-                setName(
-                  event.target.value
-                )
-              }
-              required
-            />
-          </label>
-        </div>
-
-
-        <button type="submit">
+        <h2 className="subsection-title">
           Add Member
-        </button>
-      </form>
+        </h2>
 
-    </div>
+
+        <form
+          className="add-member-form"
+          onSubmit={
+            handleAddMember
+          }
+        >
+
+          <div className="form-field">
+
+            <label>
+              Employee ID:
+
+              <input
+                type="text"
+                value={employeeId}
+                onChange={(event) =>
+                  setEmployeeId(
+                    event.target.value
+                  )
+                }
+                required
+              />
+
+            </label>
+
+          </div>
+
+
+          <div className="form-field">
+
+            <label>
+              Name:
+
+              <input
+                type="text"
+                value={name}
+                onChange={(event) =>
+                  setName(
+                    event.target.value
+                  )
+                }
+                required
+              />
+
+            </label>
+
+          </div>
+
+
+          <button
+            className="primary-button"
+            type="submit"
+          >
+            Add Member
+          </button>
+
+        </form>
+
+      </div>
+
+    </section>
   );
 }
 

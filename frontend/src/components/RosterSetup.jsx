@@ -116,7 +116,9 @@ function validateMemberRequirements(
     }
   }
 
-  return findMemberConflict(memberRequirements);
+  return findMemberConflict(
+    memberRequirements
+  );
 }
 
 
@@ -210,7 +212,9 @@ function RosterSetup() {
         };
       });
 
-      setRequirements(initialRequirements);
+      setRequirements(
+        initialRequirements
+      );
 
     } catch (error) {
       console.error(
@@ -819,627 +823,713 @@ function RosterSetup() {
   // --------------------------------------------------
 
   return (
-    <div>
+    <div className="roster-page">
 
       {/* ==================================================
           CREATE MONTHLY ROSTER
           ================================================== */}
 
-      <h1>
-        Create Monthly Roster
-      </h1>
+      <section className="app-section">
+
+        <div className="app-section-header">
+          <h1>
+            Create Monthly Roster
+          </h1>
+
+          <p>
+            Configure the monthly roster and
+            member shift requirements.
+          </p>
+        </div>
 
 
-      {errors.general && (
-        <p>
-          {errors.general}
-        </p>
-      )}
-
-
-      <div>
-        <label>
-          Month:
-
-          <select
-            value={month}
-            onChange={
-              handleMonthChange
-            }
-          >
-            {Array.from(
-              { length: 12 },
-              (_, index) =>
-                index + 1
-            ).map(
-              (monthNumber) => (
-                <option
-                  key={monthNumber}
-                  value={monthNumber}
-                >
-                  {monthNumber}
-                </option>
-              )
-            )}
-          </select>
-        </label>
-      </div>
-
-
-      <div>
-        <label>
-          Year:
-
-          <input
-            type="number"
-            value={year}
-            onChange={
-              handleYearChange
-            }
-          />
-        </label>
-      </div>
-
-
-      <div>
-        <label>
-          Group Number:
-
-          <input
-            type="text"
-            value={groupNumber}
-            onChange={(event) =>
-              setGroupNumber(
-                event.target.value
-              )
-            }
-          />
-        </label>
-      </div>
-
-
-      <div>
-        <label>
-          Public Holidays:
-
-          <input
-            type="number"
-            min="0"
-            value={
-              publicHolidays
-            }
-            onChange={(event) =>
-              setPublicHolidays(
-                Number(
-                  event.target.value
-                )
-              )
-            }
-          />
-        </label>
-      </div>
-
-
-      <h2>
-        Member Requirements
-      </h2>
-
-
-      <table>
-        <thead>
-          <tr>
-            <th>
-              Member
-            </th>
-
-            {SHIFTS.map(
-              (shift) => (
-                <th
-                  key={shift}
-                >
-                  {shift}
-                </th>
-              )
-            )}
-          </tr>
-        </thead>
-
-
-        <tbody>
-          {members.map(
-            (member) => (
-              <tr
-                key={
-                  member.employee_id
-                }
-              >
-                <td>
-                  {member.name}
-                </td>
-
-                {SHIFTS.map(
-                  (shift) => (
-                    <td
-                      key={shift}
-                    >
-                      <input
-                        type="text"
-                        placeholder="e.g. 2,5,8"
-                        value={
-                          requirements[
-                            member.employee_id
-                          ]?.[
-                            shift
-                          ] || ""
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          handleRequirementChange(
-                            member.employee_id,
-                            shift,
-                            event
-                              .target
-                              .value
-                          )
-                        }
-                        onBlur={() =>
-                          handleRequirementBlur(
-                            member.employee_id,
-                            shift
-                          )
-                        }
-                      />
-                    </td>
-                  )
-                )}
-              </tr>
-            )
-          )}
-        </tbody>
-      </table>
-
-
-      {Object.entries(
-        errors
-      )
-        .filter(
-          ([key, value]) =>
-            key !== "general" &&
-            value
-        )
-        .map(
-          ([
-            employeeId,
-            error,
-          ]) => (
-            <p
-              key={employeeId}
-            >
-              {employeeId}:{" "}
-              {error}
-            </p>
-          )
+        {errors.general && (
+          <p className="form-error general-error">
+            {errors.general}
+          </p>
         )}
 
 
-      <button
-        disabled={
-          hasErrors ||
-          !groupNumber.trim()
-        }
-        onClick={
-          handleGenerateRoster
-        }
-      >
-        Generate Roster
-      </button>
+        {/* --------------------------------------------------
+            ROSTER DETAILS
+            -------------------------------------------------- */}
 
+        <div className="form-grid">
 
-      {/* ==================================================
-          ROSTER STATUS
-          ================================================== */}
+          <div className="form-field">
+            <label>
+              Month:
 
-      {rosterStatus && (
-        <div
-          className={`roster-status-box ${rosterStatus.type}`}
-        >
-
-          <div className="roster-status-header">
-
-            {rosterStatus.type ===
-              "success" && (
-              <>
-                <span className="status-icon">
-                  ✓
-                </span>
-
-                <h2>
-                  Roster Generated
-                  Successfully
-                </h2>
-              </>
-            )}
-
-
-            {rosterStatus.type ===
-              "duplicate" && (
-              <>
-                <span className="status-icon">
-                  ⚠
-                </span>
-
-                <h2>
-                  Roster Already
-                  Exists
-                </h2>
-              </>
-            )}
-
-
-            {rosterStatus.type ===
-              "error" && (
-              <>
-                <span className="status-icon">
-                  ✕
-                </span>
-
-                <h2>
-                  Roster Generation
-                  Failed
-                </h2>
-              </>
-            )}
-
+              <select
+                value={month}
+                onChange={
+                  handleMonthChange
+                }
+              >
+                {Array.from(
+                  { length: 12 },
+                  (_, index) =>
+                    index + 1
+                ).map(
+                  (monthNumber) => (
+                    <option
+                      key={monthNumber}
+                      value={monthNumber}
+                    >
+                      {monthNumber}
+                    </option>
+                  )
+                )}
+              </select>
+            </label>
           </div>
 
 
-          <div className="roster-status-content">
+          <div className="form-field">
+            <label>
+              Year:
 
-            {rosterStatus.type ===
-              "success" && (
-              <>
+              <input
+                type="number"
+                value={year}
+                onChange={
+                  handleYearChange
+                }
+              />
+            </label>
+          </div>
+
+
+          <div className="form-field">
+            <label>
+              Group Number:
+
+              <input
+                type="text"
+                value={groupNumber}
+                onChange={(event) =>
+                  setGroupNumber(
+                    event.target.value
+                  )
+                }
+              />
+            </label>
+          </div>
+
+
+          <div className="form-field">
+            <label>
+              Public Holidays:
+
+              <input
+                type="number"
+                min="0"
+                value={
+                  publicHolidays
+                }
+                onChange={(event) =>
+                  setPublicHolidays(
+                    Number(
+                      event.target.value
+                    )
+                  )
+                }
+              />
+            </label>
+          </div>
+
+        </div>
+
+
+        {/* --------------------------------------------------
+            MEMBER REQUIREMENTS
+            -------------------------------------------------- */}
+
+        <h2 className="subsection-title">
+          Member Requirements
+        </h2>
+
+
+        <div className="table-container">
+
+          <table className="requirements-table">
+
+            <thead>
+              <tr>
+                <th>
+                  Member
+                </th>
+
+                {SHIFTS.map(
+                  (shift) => (
+                    <th
+                      key={shift}
+                    >
+                      {shift}
+                    </th>
+                  )
+                )}
+              </tr>
+            </thead>
+
+
+            <tbody>
+
+              {members.map(
+                (member) => (
+                  <tr
+                    key={
+                      member.employee_id
+                    }
+                  >
+
+                    <td>
+                      {member.name}
+                    </td>
+
+
+                    {SHIFTS.map(
+                      (shift) => (
+                        <td
+                          key={shift}
+                        >
+                          <input
+                            type="text"
+                            placeholder="e.g. 2,5,8"
+                            value={
+                              requirements[
+                                member.employee_id
+                              ]?.[
+                                shift
+                              ] || ""
+                            }
+                            onChange={(
+                              event
+                            ) =>
+                              handleRequirementChange(
+                                member.employee_id,
+                                shift,
+                                event
+                                  .target
+                                  .value
+                              )
+                            }
+                            onBlur={() =>
+                              handleRequirementBlur(
+                                member.employee_id,
+                                shift
+                              )
+                            }
+                          />
+                        </td>
+                      )
+                    )}
+
+                  </tr>
+                )
+              )}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+
+        {/* --------------------------------------------------
+            VALIDATION ERRORS
+            -------------------------------------------------- */}
+
+        {Object.entries(
+          errors
+        )
+          .filter(
+            ([key, value]) =>
+              key !== "general" &&
+              value
+          )
+          .map(
+            ([
+              employeeId,
+              error,
+            ]) => (
+              <p
+                key={employeeId}
+                className="form-error"
+              >
+                {employeeId}:{" "}
+                {error}
+              </p>
+            )
+          )}
+
+
+        {/* --------------------------------------------------
+            GENERATE BUTTON
+            -------------------------------------------------- */}
+
+        <div className="action-row">
+
+          <button
+            className="primary-button"
+            disabled={
+              hasErrors ||
+              !groupNumber.trim()
+            }
+            onClick={
+              handleGenerateRoster
+            }
+          >
+            Generate Roster
+          </button>
+
+        </div>
+
+
+        {/* ==================================================
+            ROSTER STATUS
+            ================================================== */}
+
+        {rosterStatus && (
+          <div
+            className={`roster-status-box ${rosterStatus.type}`}
+          >
+
+            <div className="roster-status-header">
+
+              {rosterStatus.type ===
+                "success" && (
+                <>
+                  <span className="status-icon">
+                    ✓
+                  </span>
+
+                  <h2>
+                    Roster Generated
+                    Successfully
+                  </h2>
+                </>
+              )}
+
+
+              {rosterStatus.type ===
+                "duplicate" && (
+                <>
+                  <span className="status-icon">
+                    ⚠
+                  </span>
+
+                  <h2>
+                    Roster Already
+                    Exists
+                  </h2>
+                </>
+              )}
+
+
+              {rosterStatus.type ===
+                "error" && (
+                <>
+                  <span className="status-icon">
+                    ✕
+                  </span>
+
+                  <h2>
+                    Roster Generation
+                    Failed
+                  </h2>
+                </>
+              )}
+
+            </div>
+
+
+            <div className="roster-status-content">
+
+              {rosterStatus.type ===
+                "success" && (
+                <>
+
+                  <p className="status-message">
+                    {
+                      rosterStatus.message
+                    }
+                  </p>
+
+
+                  <div className="roster-details">
+
+                    <div className="roster-detail">
+
+                      <span className="detail-label">
+                        Roster Name
+                      </span>
+
+                      <span className="detail-value">
+                        {
+                          rosterStatus.rosterName
+                        }
+                      </span>
+
+                    </div>
+
+
+                    <div className="roster-detail">
+
+                      <span className="detail-label">
+                        Roster ID
+                      </span>
+
+                      <span className="detail-value">
+                        {
+                          rosterStatus.rosterId
+                        }
+                      </span>
+
+                    </div>
+
+                  </div>
+
+
+                  {rosterStatus.warnings.length >
+                    0 && (
+                    <div className="status-section warnings-section">
+
+                      <h3>
+                        Warnings
+                      </h3>
+
+                      <ul>
+                        {
+                          rosterStatus.warnings.map(
+                            (
+                              warning,
+                              index
+                            ) => (
+                              <li
+                                key={
+                                  index
+                                }
+                              >
+                                {
+                                  warning
+                                }
+                              </li>
+                            )
+                          )
+                        }
+                      </ul>
+
+                    </div>
+                  )}
+
+
+                  {rosterStatus.relaxedRequirements.length >
+                    0 && (
+                    <div className="status-section relaxed-section">
+
+                      <h3>
+                        Relaxed
+                        Requirements
+                      </h3>
+
+                      <ul>
+                        {
+                          rosterStatus.relaxedRequirements.map(
+                            (
+                              requirement,
+                              index
+                            ) => (
+                              <li
+                                key={
+                                  index
+                                }
+                              >
+                                {
+                                  typeof requirement ===
+                                  "string"
+                                    ? requirement
+                                    : JSON.stringify(
+                                        requirement
+                                      )
+                                }
+                              </li>
+                            )
+                          )
+                        }
+                      </ul>
+
+                    </div>
+                  )}
+
+
+                  {
+                    rosterStatus.warnings
+                      .length ===
+                      0 &&
+                    rosterStatus.relaxedRequirements
+                      .length ===
+                      0 && (
+                      <p className="status-clean">
+                        No warnings or
+                        relaxed
+                        requirements.
+                      </p>
+                    )
+                  }
+
+                </>
+              )}
+
+
+              {rosterStatus.type ===
+                "duplicate" && (
                 <p className="status-message">
                   {
                     rosterStatus.message
                   }
                 </p>
+              )}
 
 
-                <div className="roster-details">
+              {rosterStatus.type ===
+                "error" && (
+                <p className="status-message">
+                  {
+                    rosterStatus.message
+                  }
+                </p>
+              )}
 
-                  <div className="roster-detail">
-                    <span className="detail-label">
-                      Roster Name
-                    </span>
-
-                    <span className="detail-value">
-                      {
-                        rosterStatus.rosterName
-                      }
-                    </span>
-                  </div>
-
-
-                  <div className="roster-detail">
-                    <span className="detail-label">
-                      Roster ID
-                    </span>
-
-                    <span className="detail-value">
-                      {
-                        rosterStatus.rosterId
-                      }
-                    </span>
-                  </div>
-
-                </div>
-
-
-                {rosterStatus.warnings.length >
-                  0 && (
-                  <div className="status-section warnings-section">
-
-                    <h3>
-                      Warnings
-                    </h3>
-
-                    <ul>
-                      {
-                        rosterStatus.warnings.map(
-                          (
-                            warning,
-                            index
-                          ) => (
-                            <li
-                              key={
-                                index
-                              }
-                            >
-                              {
-                                warning
-                              }
-                            </li>
-                          )
-                        )
-                      }
-                    </ul>
-
-                  </div>
-                )}
-
-
-                {rosterStatus.relaxedRequirements.length >
-                  0 && (
-                  <div className="status-section relaxed-section">
-
-                    <h3>
-                      Relaxed
-                      Requirements
-                    </h3>
-
-                    <ul>
-                      {
-                        rosterStatus.relaxedRequirements.map(
-                          (
-                            requirement,
-                            index
-                          ) => (
-                            <li
-                              key={
-                                index
-                              }
-                            >
-                              {
-                                typeof requirement ===
-                                "string"
-                                  ? requirement
-                                  : JSON.stringify(
-                                      requirement
-                                    )
-                              }
-                            </li>
-                          )
-                        )
-                      }
-                    </ul>
-
-                  </div>
-                )}
-
-
-                {
-                  rosterStatus.warnings
-                    .length ===
-                    0 &&
-                  rosterStatus.relaxedRequirements
-                    .length ===
-                    0 && (
-                    <p className="status-clean">
-                      No warnings or
-                      relaxed
-                      requirements.
-                    </p>
-                  )
-                }
-
-              </>
-            )}
-
-
-            {rosterStatus.type ===
-              "duplicate" && (
-              <p className="status-message">
-                {
-                  rosterStatus.message
-                }
-              </p>
-            )}
-
-
-            {rosterStatus.type ===
-              "error" && (
-              <p className="status-message">
-                {
-                  rosterStatus.message
-                }
-              </p>
-            )}
+            </div>
 
           </div>
-        </div>
-      )}
+        )}
+
+      </section>
 
 
       {/* ==================================================
           DOWNLOAD / UPLOAD ROSTER
           ================================================== */}
 
-      <hr />
+      <section className="app-section">
+
+        <div className="app-section-header">
+
+          <h1>
+            Download / Upload Roster
+          </h1>
+
+          <p>
+            Upload an existing Excel roster
+            or download a roster from the
+            database.
+          </p>
+
+        </div>
 
 
-      <h1>
-        Download / Upload Roster
-      </h1>
+        {/* --------------------------------------------------
+            FILE ROSTER DETAILS
+            -------------------------------------------------- */}
 
+        <div className="form-grid">
 
-      <div>
-        <label>
-          Month:
+          <div className="form-field">
+            <label>
+              Month:
 
-          <select
-            value={fileMonth}
-            onChange={(event) =>
-              setFileMonth(
-                Number(
-                  event.target.value
-                )
-              )
-            }
-          >
-            {Array.from(
-              { length: 12 },
-              (_, index) =>
-                index + 1
-            ).map(
-              (monthNumber) => (
-                <option
-                  key={monthNumber}
-                  value={monthNumber}
-                >
-                  {monthNumber}
-                </option>
-              )
-            )}
-          </select>
-        </label>
-      </div>
-
-
-      <div>
-        <label>
-          Year:
-
-          <input
-            type="number"
-            value={fileYear}
-            onChange={(event) =>
-              setFileYear(
-                Number(
-                  event.target.value
-                )
-              )
-            }
-          />
-        </label>
-      </div>
-
-
-      <div>
-        <label>
-          Group Number:
-
-          <input
-            type="text"
-            value={
-              fileGroupNumber
-            }
-            onChange={(event) =>
-              setFileGroupNumber(
-                event.target.value
-              )
-            }
-          />
-        </label>
-      </div>
-
-
-      <div>
-        <label>
-          Excel File:
-
-          <input
-            id="roster-upload-file"
-            type="file"
-            accept=".xlsx"
-            onChange={(event) =>
-              setSelectedFile(
-                event.target.files?.[0] ||
-                null
-              )
-            }
-          />
-        </label>
-      </div>
-
-
-      <div>
-
-        <button
-          onClick={
-            handleUploadRoster
-          }
-          disabled={
-            uploading ||
-            downloading
-          }
-        >
-          {uploading
-            ? "Uploading..."
-            : "Upload"}
-        </button>
-
-
-        <button
-          onClick={
-            handleDownloadRoster
-          }
-          disabled={
-            uploading ||
-            downloading
-          }
-        >
-          {downloading
-            ? "Downloading..."
-            : "Download"}
-        </button>
-
-      </div>
-
-
-      {/* ==================================================
-          FILE STATUS
-          ================================================== */}
-
-      {fileStatus && (
-        <div
-          className={`roster-status-box ${fileStatus.type}`}
-        >
-
-          <div className="roster-status-header">
-
-            {fileStatus.type ===
-              "success" && (
-              <>
-                <span className="status-icon">
-                  ✓
-                </span>
-
-                <h2>
-                  Success
-                </h2>
-              </>
-            )}
-
-
-            {fileStatus.type ===
-              "error" && (
-              <>
-                <span className="status-icon">
-                  ✕
-                </span>
-
-                <h2>
-                  Operation Failed
-                </h2>
-              </>
-            )}
-
+              <select
+                value={fileMonth}
+                onChange={(event) =>
+                  setFileMonth(
+                    Number(
+                      event.target.value
+                    )
+                  )
+                }
+              >
+                {Array.from(
+                  { length: 12 },
+                  (_, index) =>
+                    index + 1
+                ).map(
+                  (monthNumber) => (
+                    <option
+                      key={monthNumber}
+                      value={monthNumber}
+                    >
+                      {monthNumber}
+                    </option>
+                  )
+                )}
+              </select>
+            </label>
           </div>
 
 
-          <div className="roster-status-content">
+          <div className="form-field">
+            <label>
+              Year:
 
-            <p className="status-message">
-              {
-                fileStatus.message
-              }
-            </p>
+              <input
+                type="number"
+                value={fileYear}
+                onChange={(event) =>
+                  setFileYear(
+                    Number(
+                      event.target.value
+                    )
+                  )
+                }
+              />
+            </label>
+          </div>
 
+
+          <div className="form-field">
+            <label>
+              Group Number:
+
+              <input
+                type="text"
+                value={
+                  fileGroupNumber
+                }
+                onChange={(event) =>
+                  setFileGroupNumber(
+                    event.target.value
+                  )
+                }
+              />
+            </label>
           </div>
 
         </div>
-      )}
+
+
+        {/* --------------------------------------------------
+            FILE UPLOAD
+            -------------------------------------------------- */}
+
+        <div className="file-upload">
+
+          <label>
+            Excel File:
+
+            <input
+              id="roster-upload-file"
+              type="file"
+              accept=".xlsx"
+              onChange={(event) =>
+                setSelectedFile(
+                  event.target.files?.[0] ||
+                  null
+                )
+              }
+            />
+
+          </label>
+
+        </div>
+
+
+        {/* --------------------------------------------------
+            UPLOAD / DOWNLOAD BUTTONS
+            -------------------------------------------------- */}
+
+        <div className="action-row">
+
+          <button
+            className="primary-button"
+            onClick={
+              handleUploadRoster
+            }
+            disabled={
+              uploading ||
+              downloading
+            }
+          >
+            {uploading
+              ? "Uploading..."
+              : "Upload"}
+          </button>
+
+
+          <button
+            className="secondary-button"
+            onClick={
+              handleDownloadRoster
+            }
+            disabled={
+              uploading ||
+              downloading
+            }
+          >
+            {downloading
+              ? "Downloading..."
+              : "Download"}
+          </button>
+
+        </div>
+
+
+        {/* ==================================================
+            FILE STATUS
+            ================================================== */}
+
+        {fileStatus && (
+          <div
+            className={`roster-status-box ${fileStatus.type}`}
+          >
+
+            <div className="roster-status-header">
+
+              {fileStatus.type ===
+                "success" && (
+                <>
+                  <span className="status-icon">
+                    ✓
+                  </span>
+
+                  <h2>
+                    Success
+                  </h2>
+                </>
+              )}
+
+
+              {fileStatus.type ===
+                "error" && (
+                <>
+                  <span className="status-icon">
+                    ✕
+                  </span>
+
+                  <h2>
+                    Operation Failed
+                  </h2>
+                </>
+              )}
+
+            </div>
+
+
+            <div className="roster-status-content">
+
+              <p className="status-message">
+                {
+                  fileStatus.message
+                }
+              </p>
+
+            </div>
+
+          </div>
+        )}
+
+      </section>
 
     </div>
   );
