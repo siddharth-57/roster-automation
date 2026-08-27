@@ -28,6 +28,10 @@ function App() {
 
       </main>
 
+      <footer className="app-footer">
+        <p>Developed and Designed By Siddharth Chaudhari</p>
+      </footer>
+
     </div>
   );
 }

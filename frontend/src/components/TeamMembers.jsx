@@ -1,4 +1,5 @@
 // Team Members component
+// UI theme is controlled by App.css; application logic is unchanged.
 
 import { useEffect, useState } from "react";
 
@@ -8,14 +9,46 @@ import {
   deactivateTeamMember,
 } from "../services/teamMembers";
 
+import {
+  AlertTriangle,
+  Plus,
+  UserPlus,
+  UserX,
+  Users,
+} from "lucide-react";
+
+import {
+  Alert,
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
+
 
 function TeamMembers() {
   const [members, setMembers] = useState([]);
 
-  const [employeeId, setEmployeeId] = useState("");
-  const [name, setName] = useState("");
+  const [employeeId, setEmployeeId] =
+    useState("");
 
-  const [error, setError] = useState("");
+  const [name, setName] =
+    useState("");
+
+  const [error, setError] =
+    useState("");
 
   const [memberToDeactivate, setMemberToDeactivate] =
     useState(null);
@@ -29,7 +62,9 @@ function TeamMembers() {
       setError("");
 
     } catch (error) {
-      setError("Failed to load team members.");
+      setError(
+        "Failed to load team members."
+      );
     }
   };
 
@@ -105,14 +140,39 @@ function TeamMembers() {
 
       <div className="app-section-header">
 
-        <h1>
-          Team Members
-        </h1>
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1.5}
+        >
 
-        <p>
-          Manage active team members and
-          their roster positions.
-        </p>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 42,
+              height: 42,
+              borderRadius: "11px",
+              background: "#f3e8ff",
+              color: "#7c3aed",
+            }}
+          >
+            <Users size={22} />
+          </Box>
+
+          <Box>
+            <h1>
+              Team Members
+            </h1>
+
+            <p>
+              Manage active team members and
+              their roster positions.
+            </p>
+          </Box>
+
+        </Stack>
 
       </div>
 
@@ -122,9 +182,16 @@ function TeamMembers() {
           ================================================== */}
 
       {error && (
-        <p className="form-error general-error">
+        <Alert
+          severity="error"
+          icon={<AlertTriangle size={19} />}
+          sx={{
+            mb: 3,
+            borderRadius: "9px",
+          }}
+        >
           {error}
-        </p>
+        </Alert>
       )}
 
 
@@ -132,241 +199,510 @@ function TeamMembers() {
           TEAM MEMBERS TABLE
           ================================================== */}
 
-      <div className="members-table-container">
+      <TableContainer
+        component={Paper}
+        elevation={0}
+        sx={{
+          border: "1px solid #e7ddf0",
+          borderRadius: "11px",
+          overflow: "hidden",
+          mb: 4,
+        }}
+      >
 
-        <table className="members-table">
+        <Table>
 
-          <thead>
-            <tr>
+          <TableHead>
 
-              <th>
+            <TableRow
+              sx={{
+                backgroundColor: "#faf7fd",
+              }}
+            >
+
+              <TableCell
+                sx={{
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: "#4b3a58",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.4px",
+                }}
+              >
                 Position
-              </th>
+              </TableCell>
 
-              <th>
+
+              <TableCell
+                sx={{
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: "#4b3a58",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.4px",
+                }}
+              >
                 Employee ID
-              </th>
+              </TableCell>
 
-              <th>
+
+              <TableCell
+                sx={{
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: "#4b3a58",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.4px",
+                }}
+              >
                 Name
-              </th>
+              </TableCell>
 
-              <th>
+
+              <TableCell
+                align="right"
+                sx={{
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: "#4b3a58",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.4px",
+                }}
+              >
                 Action
-              </th>
+              </TableCell>
 
-            </tr>
-          </thead>
+            </TableRow>
+
+          </TableHead>
 
 
-          <tbody>
+          <TableBody>
 
             {members.map((member) => (
-              <tr
-                key={
-                  member.employee_id
-                }
+              <TableRow
+                key={member.employee_id}
+                hover
               >
 
-                <td>
+                <TableCell
+                  sx={{
+                    color: "#51415d",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                  }}
+                >
                   {member.display_order}
-                </td>
+                </TableCell>
 
-                <td>
+
+                <TableCell
+                  sx={{
+                    color: "#4b3a58",
+                    fontSize: "14px",
+                  }}
+                >
                   {member.employee_id}
-                </td>
+                </TableCell>
 
-                <td>
+
+                <TableCell
+                  sx={{
+                    color: "#2b1748",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                  }}
+                >
                   {member.name}
-                </td>
+                </TableCell>
 
-                <td>
 
-                  <button
-                    className="danger-button"
+                <TableCell align="right">
+
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    startIcon={
+                      <UserX size={16} />
+                    }
                     onClick={() =>
                       setMemberToDeactivate(
                         member
                       )
                     }
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 600,
+                      borderRadius: "8px",
+                    }}
                   >
                     Deactivate
-                  </button>
+                  </Button>
 
-                </td>
+                </TableCell>
 
-              </tr>
+              </TableRow>
             ))}
 
-          </tbody>
+          </TableBody>
 
-        </table>
+        </Table>
 
-      </div>
+      </TableContainer>
 
 
       {/* ==================================================
           DEACTIVATION CONFIRMATION
           ================================================== */}
 
-      {memberToDeactivate && (
-        <div className="deactivate-confirmation">
+      <Dialog
+        open={Boolean(memberToDeactivate)}
+        onClose={
+          handleCancelDeactivate
+        }
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: "14px",
+            padding: "4px",
+          },
+        }}
+      >
 
-          <h2>
-            Deactivate Employee
-          </h2>
+        <DialogTitle>
 
-          <p>
+          <Stack
+            direction="row"
+            spacing={1.5}
+            alignItems="center"
+          >
+
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 40,
+                height: 40,
+                borderRadius: "10px",
+                background: "#fff7ed",
+                color: "#ea580c",
+              }}
+            >
+              <AlertTriangle size={21} />
+            </Box>
+
+            <Box>
+
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 700,
+                  color: "#2b1748",
+                }}
+              >
+                Deactivate Employee
+              </Typography>
+
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "#75677f",
+                  mt: 0.3,
+                }}
+              >
+                This action will deactivate
+                the selected employee.
+              </Typography>
+
+            </Box>
+
+          </Stack>
+
+        </DialogTitle>
+
+
+        <DialogContent>
+
+          <Typography
+            sx={{
+              color: "#51415d",
+              fontSize: "14px",
+              mb: 2.5,
+            }}
+          >
             Are you sure you want to
             deactivate this employee?
-          </p>
+          </Typography>
 
 
-          <div className="deactivate-details">
+          {memberToDeactivate && (
+            <Stack spacing={1.2}>
 
-            <div className="deactivate-detail">
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "12px 14px",
+                  borderRadius: "8px",
+                  background: "#faf7fd",
+                  border: "1px solid #e7ddf0",
+                }}
+              >
 
-              <span className="deactivate-detail-label">
-                Employee ID
-              </span>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "#75677f",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Employee ID
+                </Typography>
 
-              <span className="deactivate-detail-value">
-                {
-                  memberToDeactivate.employee_id
-                }
-              </span>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#2b1748",
+                    fontWeight: 600,
+                  }}
+                >
+                  {
+                    memberToDeactivate.employee_id
+                  }
+                </Typography>
 
-            </div>
-
-
-            <div className="deactivate-detail">
-
-              <span className="deactivate-detail-label">
-                Name
-              </span>
-
-              <span className="deactivate-detail-value">
-                {
-                  memberToDeactivate.name
-                }
-              </span>
-
-            </div>
-
-
-            <div className="deactivate-detail">
-
-              <span className="deactivate-detail-label">
-                Display Order
-              </span>
-
-              <span className="deactivate-detail-value">
-                {
-                  memberToDeactivate.display_order
-                }
-              </span>
-
-            </div>
-
-          </div>
+              </Box>
 
 
-          <div className="action-row">
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "12px 14px",
+                  borderRadius: "8px",
+                  background: "#faf7fd",
+                  border: "1px solid #e7ddf0",
+                }}
+              >
 
-            <button
-              className="danger-button"
-              onClick={
-                handleDeactivate
-              }
-            >
-              I'm Sure
-            </button>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "#75677f",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Name
+                </Typography>
 
-            <button
-              className="secondary-button"
-              onClick={
-                handleCancelDeactivate
-              }
-            >
-              No
-            </button>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#2b1748",
+                    fontWeight: 600,
+                  }}
+                >
+                  {
+                    memberToDeactivate.name
+                  }
+                </Typography>
 
-          </div>
+              </Box>
 
-        </div>
-      )}
+
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "12px 14px",
+                  borderRadius: "8px",
+                  background: "#faf7fd",
+                  border: "1px solid #e7ddf0",
+                }}
+              >
+
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "#75677f",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Display Order
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#2b1748",
+                    fontWeight: 600,
+                  }}
+                >
+                  {
+                    memberToDeactivate.display_order
+                  }
+                </Typography>
+
+              </Box>
+
+            </Stack>
+          )}
+
+        </DialogContent>
+
+
+        <DialogActions
+          sx={{
+            padding:
+              "12px 24px 20px",
+            gap: 1,
+          }}
+        >
+
+          <Button
+            variant="outlined"
+            onClick={
+              handleCancelDeactivate
+            }
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: "8px",
+              color: "#4b3a58",
+              borderColor: "#d8cde5",
+            }}
+          >
+            No
+          </Button>
+
+
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={
+              <UserX size={17} />
+            }
+            onClick={
+              handleDeactivate
+            }
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: "8px",
+              boxShadow: "none",
+            }}
+          >
+            I'm Sure
+          </Button>
+
+        </DialogActions>
+
+      </Dialog>
 
 
       {/* ==================================================
           ADD MEMBER
           ================================================== */}
 
-      <div className="add-member-section">
+      <Box
+        className="add-member-section"
+        sx={{
+          mt: 1,
+        }}
+      >
 
-        <h2 className="subsection-title">
-          Add Member
-        </h2>
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1}
+          sx={{
+            mb: 2,
+          }}
+        >
+
+          <UserPlus
+            size={19}
+            color="#7c3aed"
+          />
+
+          <h2 className="subsection-title">
+            Add Member
+          </h2>
+
+        </Stack>
 
 
-        <form
+        <Box
+          component="form"
           className="add-member-form"
           onSubmit={
             handleAddMember
           }
         >
 
-          <div className="form-field">
-
-            <label>
-              Employee ID:
-
-              <input
-                type="text"
-                value={employeeId}
-                onChange={(event) =>
-                  setEmployeeId(
-                    event.target.value
-                  )
-                }
-                required
-              />
-
-            </label>
-
-          </div>
+          <TextField
+            label="Employee ID"
+            value={employeeId}
+            onChange={(event) =>
+              setEmployeeId(
+                event.target.value
+              )
+            }
+            required
+            fullWidth
+            size="small"
+          />
 
 
-          <div className="form-field">
-
-            <label>
-              Name:
-
-              <input
-                type="text"
-                value={name}
-                onChange={(event) =>
-                  setName(
-                    event.target.value
-                  )
-                }
-                required
-              />
-
-            </label>
-
-          </div>
+          <TextField
+            label="Name"
+            value={name}
+            onChange={(event) =>
+              setName(
+                event.target.value
+              )
+            }
+            required
+            fullWidth
+            size="small"
+          />
 
 
-          <button
-            className="primary-button"
+          <Button
             type="submit"
+            variant="contained"
+            startIcon={
+              <Plus size={17} />
+            }
+            sx={{
+              minHeight: "42px",
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: "8px",
+              boxShadow: "none",
+              backgroundColor: "#7c3aed",
+              "&:hover": {
+                backgroundColor: "#6d28d9",
+                boxShadow:
+                  "0 3px 8px rgba(124, 58, 237, 0.22)",
+              },
+            }}
           >
             Add Member
-          </button>
+          </Button>
 
-        </form>
+        </Box>
 
-      </div>
+      </Box>
 
     </section>
   );

@@ -8,7 +8,7 @@
 
 .app-shell {
   min-height: 100vh;
-  background: #f4f7fb;
+  background: #faf8ff;
 }
 
 
@@ -17,7 +17,7 @@
    ========================================================= */
 
 .app-header {
-  background: #172033;
+  background: linear-gradient(135deg, #3b176d 0%, #6d28d9 70%, #8b3a62 100%);
   color: #ffffff;
   padding: 22px 40px;
   box-shadow: 0 2px 8px rgba(16, 24, 40, 0.12);
@@ -39,7 +39,7 @@
 
 .app-header p {
   margin: 4px 0 0;
-  color: #cbd5e1;
+  color: #ddd3ee;
   font-size: 14px;
 }
 
@@ -62,7 +62,7 @@
 
 .app-section {
   background: #ffffff;
-  border: 1px solid #e4e7ec;
+  border: 1px solid #e8def2;
   border-radius: 14px;
   padding: 30px;
   margin-bottom: 28px;
@@ -77,7 +77,7 @@
 .app-section-header h1,
 .app-section-header h2 {
   margin: 0;
-  color: #172033;
+  color: #24143f;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.3px;
@@ -85,7 +85,7 @@
 
 .app-section-header p {
   margin: 6px 0 0;
-  color: #667085;
+  color: #74697f;
   font-size: 14px;
 }
 
@@ -109,7 +109,7 @@
 }
 
 .form-field label {
-  color: #344054;
+  color: #443650;
   font-size: 13px;
   font-weight: 600;
 }
@@ -119,10 +119,10 @@
   width: 100%;
   min-height: 42px;
   padding: 9px 12px;
-  border: 1px solid #d0d5dd;
+  border: 1px solid #d8cde5;
   border-radius: 8px;
   background: #ffffff;
-  color: #172033;
+  color: #24143f;
   outline: none;
   transition:
     border-color 0.15s ease,
@@ -131,9 +131,9 @@
 
 .form-field input:focus,
 .form-field select:focus {
-  border-color: #2563eb;
+  border-color: #7c3aed;
   box-shadow:
-    0 0 0 3px rgba(37, 99, 235, 0.12);
+    0 0 0 3px rgba(124, 58, 237, 0.14);
 }
 
 
@@ -143,7 +143,7 @@
 
 .subsection-title {
   margin: 0 0 16px;
-  color: #172033;
+  color: #24143f;
   font-size: 17px;
   font-weight: 700;
 }
@@ -156,7 +156,7 @@
 .table-container {
   width: 100%;
   overflow-x: auto;
-  border: 1px solid #e4e7ec;
+  border: 1px solid #e8def2;
   border-radius: 10px;
   margin-bottom: 20px;
 }
@@ -168,14 +168,14 @@
 }
 
 .requirements-table th {
-  background: #f8fafc;
-  color: #344054;
+  background: #fbf9fe;
+  color: #443650;
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.4px;
   padding: 13px 12px;
-  border-bottom: 1px solid #e4e7ec;
+  border-bottom: 1px solid #e8def2;
   text-align: center;
 }
 
@@ -185,8 +185,8 @@
 
 .requirements-table td {
   padding: 10px 12px;
-  border-bottom: 1px solid #f0f2f5;
-  color: #344054;
+  border-bottom: 1px solid #f1ebf6;
+  color: #443650;
   font-size: 14px;
   text-align: center;
 }
@@ -202,14 +202,14 @@
 }
 
 .requirements-table tbody tr:hover {
-  background: #f8fafc;
+  background: #fbf9fe;
 }
 
 .requirements-table input {
   width: 100%;
   min-width: 70px;
   padding: 8px 9px;
-  border: 1px solid #d0d5dd;
+  border: 1px solid #d8cde5;
   border-radius: 7px;
   text-align: center;
   outline: none;
@@ -217,9 +217,9 @@
 }
 
 .requirements-table input:focus {
-  border-color: #2563eb;
+  border-color: #7c3aed;
   box-shadow:
-    0 0 0 3px rgba(37, 99, 235, 0.10);
+    0 0 0 3px rgba(124, 58, 237, 0.11);
 }
 
 
@@ -245,40 +245,40 @@
 }
 
 .primary-button {
-  background: #2563eb;
+  background: #7c3aed;
   color: #ffffff;
 }
 
 .primary-button:hover {
-  background: #1d4ed8;
+  background: #6d28d9;
   box-shadow:
-    0 3px 8px rgba(37, 99, 235, 0.22);
+    0 3px 8px rgba(124, 58, 237, 0.22);
 }
 
 .secondary-button {
   background: #ffffff;
-  color: #344054;
-  border-color: #d0d5dd;
+  color: #443650;
+  border-color: #d8cde5;
 }
 
 .secondary-button:hover {
-  background: #f8fafc;
+  background: #fbf9fe;
 }
 
 .danger-button {
   background: #ffffff;
   color: #dc2626;
-  border-color: #fca5a5;
+  border-color: #fda4af;
 }
 
 .danger-button:hover {
-  background: #fef2f2;
+  background: #fff1f2;
 }
 
 .warning-button {
   background: #fff7ed;
-  color: #b45309;
-  border-color: #fdba74;
+  color: #c2410c;
+  border-color: #fb923c;
 }
 
 .primary-button:disabled,
@@ -311,9 +311,9 @@
   margin: 8px 0;
   padding: 10px 13px;
   border-radius: 7px;
-  background: #fef2f2;
+  background: #fff1f2;
   border: 1px solid #fecaca;
-  color: #b91c1c;
+  color: #be123c;
   font-size: 13px;
 }
 
@@ -330,7 +330,7 @@
   width: 100%;
   margin-top: 24px;
   margin-bottom: 10px;
-  border: 1px solid #e4e7ec;
+  border: 1px solid #e8def2;
   border-radius: 12px;
   overflow: hidden;
   background: #ffffff;
@@ -342,12 +342,12 @@
   align-items: center;
   gap: 11px;
   padding: 16px 20px;
-  border-bottom: 1px solid #e4e7ec;
+  border-bottom: 1px solid #e8def2;
 }
 
 .roster-status-header h2 {
   margin: 0;
-  color: #172033;
+  color: #24143f;
   font-size: 17px;
   font-weight: 700;
 }
@@ -370,7 +370,7 @@
 
 .status-message {
   margin: 0 0 18px;
-  color: #344054;
+  color: #443650;
   font-size: 14px;
 }
 
@@ -380,21 +380,21 @@
    ========================================================= */
 
 .roster-status-box.success {
-  border-left: 4px solid #15803d;
+  border-left: 4px solid #ea580c;
 }
 
 .roster-status-box.success .status-icon {
-  color: #15803d;
-  background: #ecfdf3;
+  color: #ea580c;
+  background: #fff4e8;
 }
 
 .roster-status-box.duplicate {
-  border-left: 4px solid #b45309;
+  border-left: 4px solid #c2410c;
 }
 
 .roster-status-box.duplicate .status-icon {
-  color: #b45309;
-  background: #fffaeb;
+  color: #c2410c;
+  background: #fff7ed;
 }
 
 .roster-status-box.error {
@@ -403,7 +403,7 @@
 
 .roster-status-box.error .status-icon {
   color: #dc2626;
-  background: #fef2f2;
+  background: #fff1f2;
 }
 
 
@@ -424,13 +424,13 @@
   flex-direction: column;
   gap: 5px;
   padding: 13px 15px;
-  background: #f8fafc;
-  border: 1px solid #e4e7ec;
+  background: #fbf9fe;
+  border: 1px solid #e8def2;
   border-radius: 8px;
 }
 
 .detail-label {
-  color: #667085;
+  color: #74697f;
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
@@ -438,7 +438,7 @@
 }
 
 .detail-value {
-  color: #172033;
+  color: #24143f;
   font-size: 14px;
   font-weight: 700;
 }
@@ -478,8 +478,8 @@
 }
 
 .relaxed-section {
-  background: #f8fafc;
-  border: 1px solid #e4e7ec;
+  background: #fbf9fe;
+  border: 1px solid #e8def2;
   color: #475467;
 }
 
@@ -487,9 +487,9 @@
   margin: 18px 0 0;
   padding: 11px 14px;
   border-radius: 8px;
-  background: #f8fafc;
-  border: 1px solid #e4e7ec;
-  color: #667085;
+  background: #fbf9fe;
+  border: 1px solid #e8def2;
+  color: #74697f;
   font-size: 13px;
 }
 
@@ -500,7 +500,7 @@
 
 .section-divider {
   border: none;
-  border-top: 1px solid #e4e7ec;
+  border-top: 1px solid #e8def2;
   margin: 30px 0;
 }
 
@@ -514,21 +514,21 @@
   align-items: center;
   gap: 14px;
   padding: 14px;
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
+  background: #fbf9fe;
+  border: 1px dashed #ddd3ee;
   border-radius: 9px;
   margin-bottom: 20px;
 }
 
 .file-upload label {
-  color: #344054;
+  color: #443650;
   font-size: 13px;
   font-weight: 600;
 }
 
 .file-upload input[type="file"] {
   font-size: 13px;
-  color: #667085;
+  color: #74697f;
 }
 
 
@@ -539,7 +539,7 @@
 .members-table-container {
   width: 100%;
   overflow-x: auto;
-  border: 1px solid #e4e7ec;
+  border: 1px solid #e8def2;
   border-radius: 10px;
   margin-bottom: 28px;
 }
@@ -551,9 +551,9 @@
 
 .members-table th {
   padding: 13px 15px;
-  background: #f8fafc;
-  color: #344054;
-  border-bottom: 1px solid #e4e7ec;
+  background: #fbf9fe;
+  color: #443650;
+  border-bottom: 1px solid #e8def2;
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -563,13 +563,13 @@
 
 .members-table td {
   padding: 13px 15px;
-  color: #344054;
-  border-bottom: 1px solid #f0f2f5;
+  color: #443650;
+  border-bottom: 1px solid #f1ebf6;
   font-size: 14px;
 }
 
 .members-table tbody tr:hover {
-  background: #f8fafc;
+  background: #fbf9fe;
 }
 
 .members-table tbody tr:last-child td {
@@ -604,19 +604,19 @@
   margin-bottom: 28px;
   padding: 20px;
   background: #fff7ed;
-  border: 1px solid #fdba74;
+  border: 1px solid #fb923c;
   border-radius: 10px;
 }
 
 .deactivate-confirmation h2 {
   margin: 0 0 8px;
-  color: #9a3412;
+  color: #c2410c;
   font-size: 17px;
 }
 
 .deactivate-confirmation p {
   margin: 7px 0;
-  color: #7c2d12;
+  color: #9a3412;
   font-size: 14px;
 }
 
@@ -638,14 +638,14 @@
 .deactivate-detail-label {
   display: block;
   margin-bottom: 3px;
-  color: #9a3412;
+  color: #c2410c;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
 }
 
 .deactivate-detail-value {
-  color: #431407;
+  color: #6b2b12;
   font-size: 14px;
   font-weight: 600;
 }
@@ -657,7 +657,7 @@
 
 .page-title {
   margin: 0;
-  color: #172033;
+  color: #24143f;
   font-size: 26px;
   font-weight: 750;
   letter-spacing: -0.5px;
@@ -665,7 +665,7 @@
 
 .page-subtitle {
   margin: 6px 0 0;
-  color: #667085;
+  color: #74697f;
   font-size: 14px;
 }
 
@@ -745,3 +745,344 @@
 }
 
 
+.app-section-header > .MuiStack-root h1 {
+  margin: 0;
+}
+
+.app-section-header > .MuiStack-root p {
+  margin: 5px 0 0;
+}
+
+.add-member-section .subsection-title {
+  margin: 0;
+}
+
+
+/* =========================================================
+   MODERN UI REFINEMENTS
+   UI ONLY â€” no application logic
+   ========================================================= */
+
+/* Keep labels clearly separated from their controls */
+.form-field label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Give the main header a cleaner, centered presentation */
+.app-header {
+  padding: 28px 40px;
+}
+
+.app-header-inner {
+  text-align: center;
+}
+
+.app-header h1 {
+  font-size: 26px;
+  letter-spacing: -0.5px;
+}
+
+.app-header p {
+  margin-top: 7px;
+}
+
+/* Slightly more spacious section layout */
+.app-section {
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow:
+    0 6px 18px rgba(16, 24, 40, 0.06);
+}
+
+.app-section-header {
+  margin-bottom: 30px;
+}
+
+.app-section-header h1 {
+  font-size: 23px;
+}
+
+/* Cleaner form spacing */
+.form-grid {
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.form-field {
+  gap: 8px;
+}
+
+.form-field label {
+  line-height: 1.35;
+}
+
+/* Make native controls feel closer to the MUI controls */
+.form-field input,
+.form-field select {
+  min-height: 44px;
+  border-radius: 9px;
+  font-size: 14px;
+}
+
+/* Requirements table gets a little more breathing room */
+.table-container {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.03);
+}
+
+.requirements-table th {
+  padding: 14px 12px;
+}
+
+.requirements-table td {
+  padding: 11px 12px;
+}
+
+/* Better separation for the Excel picker */
+.file-upload {
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 10px;
+}
+
+.file-upload label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.file-upload input[type="file"] {
+  margin-left: 2px;
+}
+
+/* Give action buttons a more modern feel */
+.primary-button,
+.secondary-button,
+.danger-button,
+.warning-button {
+  min-height: 44px;
+  border-radius: 9px;
+  padding-left: 19px;
+  padding-right: 19px;
+}
+
+/* Status cards */
+.roster-status-box {
+  margin-top: 26px;
+  border-radius: 13px;
+  box-shadow:
+    0 5px 14px rgba(16, 24, 40, 0.05);
+}
+
+.roster-status-header {
+  padding: 17px 20px;
+}
+
+.roster-status-content {
+  padding: 21px 20px;
+}
+
+/* Team Members section â€” complements the MUI components */
+.add-member-section {
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.add-member-form {
+  gap: 16px;
+}
+
+/* Footer */
+.app-footer {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 28px 30px;
+  text-align: center;
+}
+
+.app-footer p {
+  margin: 0;
+  color: #9b8fa8;
+  font-size: 12px;
+  letter-spacing: 0.1px;
+}
+
+/* Responsive refinements */
+@media (max-width: 700px) {
+  .app-header {
+    padding: 24px 20px;
+  }
+
+  .app-section {
+    padding: 22px;
+  }
+
+  .app-footer {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
+@media (max-width: 500px) {
+  .app-section {
+    padding: 18px;
+  }
+
+  .app-header h1 {
+    font-size: 23px;
+  }
+}
+
+
+/* =========================================================
+   PURPLE / ORANGE / WHITE THEME
+   UI ONLY â€” existing layout and functionality preserved
+   ========================================================= */
+
+body {
+  background: #faf8ff;
+}
+
+.app-shell {
+  background:
+    radial-gradient(circle at 90% 0%, rgba(249, 115, 22, 0.07), transparent 28%),
+    linear-gradient(180deg, #faf8ff 0%, #f7f2fb 100%);
+}
+
+.app-header {
+  background:
+    linear-gradient(135deg, #35115f 0%, #6d28d9 68%, #9a3412 130%);
+  box-shadow: 0 4px 16px rgba(59, 23, 109, 0.18);
+}
+
+.app-section {
+  background: #ffffff;
+  border-color: #e7ddf0;
+}
+
+.app-section-header h1,
+.app-section-header h2,
+.subsection-title,
+.page-title {
+  color: #2b1748;
+}
+
+.app-section-header p,
+.page-subtitle {
+  color: #75677f;
+}
+
+.form-field label {
+  color: #4b3a58;
+}
+
+.form-field input,
+.form-field select,
+.requirements-table input {
+  border-color: #d9cde6;
+  background: #ffffff;
+  color: #2b1748;
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.requirements-table input:focus {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.13);
+}
+
+.requirements-table th,
+.members-table th {
+  background: #faf7fd;
+  color: #4b3a58;
+}
+
+.requirements-table tbody tr:hover,
+.members-table tbody tr:hover {
+  background: #fcf8ff;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+}
+
+.primary-button:hover {
+  background: linear-gradient(135deg, #6d28d9, #5b21b6);
+}
+
+.secondary-button {
+  border-color: #d9cde6;
+  color: #4b3a58;
+}
+
+.secondary-button:hover {
+  background: #faf7fd;
+}
+
+.warning-button {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fdba74;
+}
+
+.section-divider {
+  border-top-color: #e7ddf0;
+}
+
+.file-upload {
+  background: linear-gradient(135deg, #fcfaff, #fffaf5);
+  border-color: #d8c8e8;
+}
+
+.roster-status-box {
+  border-color: #e7ddf0;
+}
+
+.roster-detail,
+.relaxed-section,
+.status-clean {
+  background: #faf7fd;
+  border-color: #e7ddf0;
+}
+
+.warnings-section {
+  background: #fff8ef;
+  border-color: #fdba74;
+  color: #9a3412;
+}
+
+.app-footer {
+  color: #8b7b96;
+}
+
+.app-footer p {
+  color: #8b7b96;
+}
+
+/* MUI components used by TeamMembers */
+.add-member-section .MuiButton-contained {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+}
+
+.add-member-section .MuiButton-contained:hover {
+  background: linear-gradient(135deg, #6d28d9, #5b21b6);
+}
+
+.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #7c3aed !important;
+}
+
+.MuiButton-outlined {
+  border-color: #d8cde5;
+}
+
+@media (max-width: 700px) {
+  .app-header {
+    background:
+      linear-gradient(135deg, #35115f 0%, #6d28d9 75%, #9a3412 135%);
+  }
+}
