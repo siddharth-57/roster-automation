@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-
 from app.database import get_db
 from app.models.team_member import TeamMember
 from app.schemas.team_member import (
@@ -59,20 +58,13 @@ def create_team_member(
         .order_by(TeamMember.display_order)
     ).all()
 
-    new_position = min(
-        member.display_order,
-        len(active_members) + 1,
-    )
-
-    for existing_member in reversed(active_members):
-        if existing_member.display_order >= new_position:
-            existing_member.display_order += 1
+    new_display_order = len(active_members) + 1
 
     new_member = TeamMember(
         employee_id=member.employee_id,
         name=member.name,
         active=True,
-        display_order=new_position,
+        display_order=new_display_order,
     )
 
     db.add(new_member)
@@ -102,7 +94,28 @@ def deactivate_team_member(
             detail="Team member not found",
         )
 
+    if not member.active:
+        raise HTTPException(
+            status_code=400,
+            detail="Team member is already inactive",
+        )
+
     member.active = False
+
+    active_members = db.scalars(
+        select(TeamMember)
+        .where(
+            TeamMember.active.is_(True),
+            TeamMember.employee_id != employee_id,
+        )
+        .order_by(TeamMember.display_order)
+    ).all()
+
+    for index, active_member in enumerate(
+        active_members,
+        start=1,
+    ):
+        active_member.display_order = index
 
     db.commit()
 

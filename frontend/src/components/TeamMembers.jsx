@@ -14,14 +14,17 @@ function TeamMembers() {
 
   const [employeeId, setEmployeeId] = useState("");
   const [name, setName] = useState("");
-  const [position, setPosition] = useState("");
 
   const [error, setError] = useState("");
+
+  const [memberToDeactivate, setMemberToDeactivate] =
+    useState(null);
 
 
   const loadMembers = async () => {
     try {
       const data = await getTeamMembers();
+
       setMembers(data);
       setError("");
     } catch (error) {
@@ -44,12 +47,10 @@ function TeamMembers() {
       await addTeamMember({
         employee_id: employeeId,
         name: name,
-        display_order: Number(position),
       });
 
       setEmployeeId("");
       setName("");
-      setPosition("");
 
       await loadMembers();
     } catch (error) {
@@ -62,13 +63,33 @@ function TeamMembers() {
   };
 
 
-  const handleDeactivate = async (employeeId) => {
+  const handleDeactivate = async () => {
+    if (!memberToDeactivate) {
+      return;
+    }
+
+    setError("");
+
     try {
-      await deactivateTeamMember(employeeId);
+      await deactivateTeamMember(
+        memberToDeactivate.employee_id
+      );
+
+      setMemberToDeactivate(null);
+
       await loadMembers();
     } catch (error) {
-      setError("Failed to remove team member.");
+      const message =
+        error.response?.data?.detail ||
+        "Failed to deactivate team member.";
+
+      setError(message);
     }
+  };
+
+
+  const handleCancelDeactivate = () => {
+    setMemberToDeactivate(null);
   };
 
 
@@ -76,11 +97,13 @@ function TeamMembers() {
     <div>
       <h1>Team Members</h1>
 
+
       {error && (
         <p>
           {error}
         </p>
       )}
+
 
       <table>
         <thead>
@@ -92,20 +115,29 @@ function TeamMembers() {
           </tr>
         </thead>
 
+
         <tbody>
           {members.map((member) => (
             <tr key={member.employee_id}>
-              <td>{member.display_order}</td>
-              <td>{member.employee_id}</td>
-              <td>{member.name}</td>
+              <td>
+                {member.display_order}
+              </td>
+
+              <td>
+                {member.employee_id}
+              </td>
+
+              <td>
+                {member.name}
+              </td>
 
               <td>
                 <button
                   onClick={() =>
-                    handleDeactivate(member.employee_id)
+                    setMemberToDeactivate(member)
                   }
                 >
-                  Remove
+                  Deactivate
                 </button>
               </td>
             </tr>
@@ -116,56 +148,98 @@ function TeamMembers() {
 
       <h2>Add Member</h2>
 
+
       <form onSubmit={handleAddMember}>
         <div>
           <label>
             Employee ID:
+
             <input
               type="text"
               value={employeeId}
               onChange={(event) =>
-                setEmployeeId(event.target.value)
+                setEmployeeId(
+                  event.target.value
+                )
               }
               required
             />
           </label>
         </div>
+
 
         <div>
           <label>
             Name:
+
             <input
               type="text"
               value={name}
               onChange={(event) =>
-                setName(event.target.value)
+                setName(
+                  event.target.value
+                )
               }
               required
             />
           </label>
         </div>
 
-        <div>
-          <label>
-            Position:
-            <input
-              type="number"
-              min="1"
-              value={position}
-              onChange={(event) =>
-                setPosition(event.target.value)
-              }
-              required
-            />
-          </label>
-        </div>
 
         <button type="submit">
           Add Member
         </button>
       </form>
+
+
+      {memberToDeactivate && (
+        <div>
+          <h2>
+            Deactivate Employee
+          </h2>
+
+          <p>
+            Are you sure you want to
+            deactivate this employee?
+          </p>
+
+          <p>
+            <strong>
+              Employee ID:
+            </strong>{" "}
+            {memberToDeactivate.employee_id}
+          </p>
+
+          <p>
+            <strong>
+              Name:
+            </strong>{" "}
+            {memberToDeactivate.name}
+          </p>
+
+          <p>
+            <strong>
+              Display Order:
+            </strong>{" "}
+            {memberToDeactivate.display_order}
+          </p>
+
+          <button
+            onClick={handleDeactivate}
+          >
+            I'm Sure
+          </button>
+
+          <button
+            onClick={handleCancelDeactivate}
+          >
+            No
+          </button>
+        </div>
+      )}
     </div>
   );
 }
+
 
 export default TeamMembers;
