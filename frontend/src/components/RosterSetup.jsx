@@ -609,90 +609,170 @@ function RosterSetup() {
           -------------------------------------------------- */}
 
       {rosterStatus && (
-        <div>
-          <h2>Roster Status</h2>
+        <div
+          className={`roster-status-box ${rosterStatus.type}`}
+        >
+          <div className="roster-status-header">
 
-          {rosterStatus.type === "success" && (
-            <>
-              <p>
-                ✓ {rosterStatus.message}
-              </p>
+            {rosterStatus.type === "success" && (
+              <>
+                <span className="status-icon">
+                  ✓
+                </span>
 
-              <p>
-                <strong>
-                  Roster Name:
-                </strong>{" "}
-                {rosterStatus.rosterName}
-              </p>
-
-              <p>
-                <strong>
-                  Roster ID:
-                </strong>{" "}
-                {rosterStatus.rosterId}
-              </p>
+                <h2>
+                  Roster Generated Successfully
+                </h2>
+              </>
+            )}
 
 
-              {rosterStatus.warnings.length >
-                0 && (
-                <div>
-                  <h3>Warnings</h3>
+            {rosterStatus.type === "duplicate" && (
+              <>
+                <span className="status-icon">
+                  ⚠
+                </span>
 
-                  <ul>
-                    {rosterStatus.warnings.map(
-                      (warning, index) => (
-                        <li key={index}>
-                          {warning}
-                        </li>
-                      )
-                    )}
-                  </ul>
+                <h2>
+                  Roster Already Exists
+                </h2>
+              </>
+            )}
+
+
+            {rosterStatus.type === "error" && (
+              <>
+                <span className="status-icon">
+                  ✕
+                </span>
+
+                <h2>
+                  Roster Generation Failed
+                </h2>
+              </>
+            )}
+
+          </div>
+
+
+          <div className="roster-status-content">
+
+            {/* SUCCESS */}
+
+            {rosterStatus.type === "success" && (
+              <>
+                <p className="status-message">
+                  {rosterStatus.message}
+                </p>
+
+
+                <div className="roster-details">
+
+                  <div className="roster-detail">
+                    <span className="detail-label">
+                      Roster Name
+                    </span>
+
+                    <span className="detail-value">
+                      {rosterStatus.rosterName}
+                    </span>
+                  </div>
+
+
+                  <div className="roster-detail">
+                    <span className="detail-label">
+                      Roster ID
+                    </span>
+
+                    <span className="detail-value">
+                      {rosterStatus.rosterId}
+                    </span>
+                  </div>
+
                 </div>
-              )}
 
 
-              {rosterStatus
-                .relaxedRequirements.length >
-                0 && (
-                <div>
-                  <h3>
-                    Relaxed Requirements
-                  </h3>
+                {/* WARNINGS */}
 
-                  <ul>
-                    {rosterStatus.relaxedRequirements.map(
-                      (requirement, index) => (
-                        <li key={index}>
-                          {typeof requirement ===
-                          "string"
-                            ? requirement
-                            : JSON.stringify(
-                                requirement
-                              )}
-                        </li>
-                      )
-                    )}
-                  </ul>
-                </div>
-              )}
-            </>
-          )}
+                {rosterStatus.warnings.length > 0 && (
+                  <div className="status-section warnings-section">
+
+                    <h3>
+                      Warnings
+                    </h3>
+
+                    <ul>
+                      {rosterStatus.warnings.map(
+                        (warning, index) => (
+                          <li key={index}>
+                            {warning}
+                          </li>
+                        )
+                      )}
+                    </ul>
+
+                  </div>
+                )}
 
 
-          {rosterStatus.type ===
-            "duplicate" && (
-            <p>
-              ⚠ {rosterStatus.message}
-            </p>
-          )}
+                {/* RELAXED REQUIREMENTS */}
+
+                {rosterStatus.relaxedRequirements.length > 0 && (
+                  <div className="status-section relaxed-section">
+
+                    <h3>
+                      Relaxed Requirements
+                    </h3>
+
+                    <ul>
+                      {rosterStatus.relaxedRequirements.map(
+                        (requirement, index) => (
+                          <li key={index}>
+                            {typeof requirement === "string"
+                              ? requirement
+                              : JSON.stringify(
+                                  requirement
+                                )}
+                          </li>
+                        )
+                      )}
+                    </ul>
+
+                  </div>
+                )}
 
 
-          {rosterStatus.type ===
-            "error" && (
-            <p>
-              ✕ {rosterStatus.message}
-            </p>
-          )}
+                {/* NO WARNINGS / RELAXED REQUIREMENTS */}
+
+                {rosterStatus.warnings.length === 0 &&
+                  rosterStatus.relaxedRequirements.length === 0 && (
+                    <p className="status-clean">
+                      No warnings or relaxed requirements.
+                    </p>
+                  )}
+
+              </>
+            )}
+
+
+            {/* DUPLICATE */}
+
+            {rosterStatus.type === "duplicate" && (
+              <p className="status-message">
+                {rosterStatus.message}
+              </p>
+            )}
+
+
+            {/* ERROR */}
+
+            {rosterStatus.type === "error" && (
+              <p className="status-message">
+                {rosterStatus.message}
+              </p>
+            )}
+
+          </div>
         </div>
       )}
     </div>

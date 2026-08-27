@@ -7,11 +7,9 @@ import TeamMembers from "./components/TeamMembers";
 function App() {
   return (
     <div>
-      <TeamMembers />
-
-      <hr />
-
       <RosterSetup />
+      <hr />
+      <TeamMembers />
     </div>
   );
 }

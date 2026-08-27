@@ -182,3 +182,208 @@
     border-right-color: var(--border);
   }
 }
+
+/* ------------------------------------------------------
+   ROSTER STATUS BOX
+   ------------------------------------------------------ */
+
+.roster-status-box {
+  width: 100%;
+  max-width: 800px;
+  margin-top: 24px;
+  margin-bottom: 32px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+
+
+/* ------------------------------------------------------
+   STATUS HEADER
+   ------------------------------------------------------ */
+
+.roster-status-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.roster-status-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+
+.status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+
+/* ------------------------------------------------------
+   SUCCESS
+   ------------------------------------------------------ */
+
+.roster-status-box.success {
+  border-left: 4px solid #2e7d32;
+}
+
+.roster-status-box.success .status-icon {
+  color: #2e7d32;
+  background: #e8f5e9;
+}
+
+
+/* ------------------------------------------------------
+   DUPLICATE
+   ------------------------------------------------------ */
+
+.roster-status-box.duplicate {
+  border-left: 4px solid #ed6c02;
+}
+
+.roster-status-box.duplicate .status-icon {
+  color: #ed6c02;
+  background: #fff3e0;
+}
+
+
+/* ------------------------------------------------------
+   ERROR
+   ------------------------------------------------------ */
+
+.roster-status-box.error {
+  border-left: 4px solid #d32f2f;
+}
+
+.roster-status-box.error .status-icon {
+  color: #d32f2f;
+  background: #ffebee;
+}
+
+
+/* ------------------------------------------------------
+   STATUS CONTENT
+   ------------------------------------------------------ */
+
+.roster-status-content {
+  padding: 20px;
+}
+
+
+.status-message {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+
+/* ------------------------------------------------------
+   ROSTER DETAILS
+   ------------------------------------------------------ */
+
+.roster-details {
+  display: flex;
+  gap: 40px;
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+
+.roster-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+
+.detail-label {
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+
+.detail-value {
+  font-weight: 600;
+}
+
+
+/* ------------------------------------------------------
+   WARNINGS / RELAXED REQUIREMENTS
+   ------------------------------------------------------ */
+
+.status-section {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+
+.status-section h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
+
+.status-section ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+
+.status-section li {
+  margin-bottom: 6px;
+}
+
+
+.warnings-section {
+  background: #fff8e1;
+  border: 1px solid #ffcc80;
+}
+
+
+.relaxed-section {
+  background: #f5f5f5;
+  border: 1px solid var(--border);
+}
+
+
+/* ------------------------------------------------------
+   NO WARNINGS
+   ------------------------------------------------------ */
+
+.status-clean {
+  margin: 20px 0 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #f5f5f5;
+  color: var(--text);
+}
+
+
+/* ------------------------------------------------------
+   MOBILE
+   ------------------------------------------------------ */
+
+@media (max-width: 600px) {
+  .roster-status-box {
+    width: 100%;
+  }
+
+  .roster-details {
+    flex-direction: column;
+    gap: 15px;
+  }
+}
