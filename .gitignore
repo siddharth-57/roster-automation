@@ -34,3 +34,7 @@ dist/
 # Some Other Files
 test_results.txt
 roster_assignments.csv
+
+# Algo Design files
+Passes.rtf
+Rules.rtf

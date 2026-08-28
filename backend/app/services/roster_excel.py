@@ -305,7 +305,8 @@ def read_roster_excel(
         data_only=True,
     )
 
-    worksheet = workbook.active
+    # worksheet = workbook.active
+    worksheet = workbook.worksheets[0]  
 
     days_in_month = get_days_in_month(
         year,
