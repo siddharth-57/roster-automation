@@ -80,7 +80,7 @@ SUMMARY_ROWS = [
     ('Shift "C" (10:00 PM to 7:00 AM)', "66FF33", "000000", "C"),
     ('Shift "G" (9:00 AM to 6:00 PM)', "83CBEB", "000000", "G"),
     ("Weekly Off (W & W)", "D9D9D9", "000000", "W"),
-    ("Holiday", "96DCF8", "000000", "H"),
+    ("Holiday", "FCE4D6", "000000", "H"),
     ("FLEXI", "00B0F0", "FFFFFF", "F"),
     ("Leave", "FF0000", "FFFFFF", "L"),
     ("TOTAL Number of People", "99FFCC", "000000", None),
@@ -94,7 +94,7 @@ LEGEND_ROWS = [
     ('Shift "G" (9:00 AM to 6:00 PM)', "83CBEB", "000000", "G"),
     ("Weekly Off (W & W)", "D9D9D9", "000000", "W"),
     ("Leave", "FF0000", "FFFFFF", "L"),
-    ("Holiday", "96DCF8", "000000", "H"),
+    ("Holiday", "FCE4D6", "000000", "H"),
 ]
 
 # Colour of each shift code inside the roster grid:
@@ -105,7 +105,7 @@ SHIFT_COLOURS = {
     "C": ("36EA58", "000000"),
     "G": ("66FFFF", "000000"),
     "W": ("BFBFBF", "000000"),
-    "H": ("96DCF8", "000000"),
+    "H": ("FCE4D6", "000000"),
     "L": ("FF0000", "FFFFFF"),
     "O": ("00B0F0", "000000"),
 }
@@ -271,7 +271,7 @@ def build_roster_workbook(
         )
         style_cell(
             ws.cell(row=row, column=3, value=name.strip()),
-            "E59EDD", font(9),
+            "E1E8F0", font(9),
         )
 
         for day in range(1, days_in_month + 1):
@@ -291,7 +291,7 @@ def build_roster_workbook(
 
             if kind == "count":
                 formula = f'=COUNTIF({grid},"{code}")'
-                cell_fill = "61CBF4"
+                cell_fill = "FFF2CC"
             elif kind == "sum_work":
                 formula = f"=SUM({work_first}{row}:{work_last}{row})"
                 cell_fill = "36EA58"
