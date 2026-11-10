@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.team_members import router as team_members_router
 from app.api.roster import router as roster_router
+from app.api.groups import router as groups_router
 
 app = FastAPI()
 
@@ -21,6 +22,7 @@ app.add_middleware(
 
 app.include_router(team_members_router)
 app.include_router(roster_router)
+app.include_router(groups_router)
 
 
 @app.get("/")

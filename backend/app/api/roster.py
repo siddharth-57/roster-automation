@@ -25,6 +25,11 @@ from app.models.roster import Roster
 from app.models.roster_assignment import RosterAssignment
 
 from app.database import get_db
+from app.services.groups import (
+    get_active_group_or_error,
+    get_group_or_404,
+    validate_members_belong_to_group,
+)
 
 import logging
 
@@ -46,6 +51,7 @@ router = APIRouter(
 @router.post("/validate")
 def validate_roster(
     request: RosterGenerationRequest,
+    db: Session = Depends(get_db),
 ):
     """
     Validate roster requirements without generating a roster.
@@ -53,6 +59,19 @@ def validate_roster(
 
     validated_request = validate_roster_request(
         request
+    )
+
+    # The group must exist and be active, and every member in the
+    # request must belong to it.
+    group = get_active_group_or_error(
+        db,
+        validated_request.group_number,
+    )
+
+    validate_members_belong_to_group(
+        db,
+        group,
+        [member.employee_id for member in validated_request.requirements],
     )
 
     return {
@@ -83,6 +102,19 @@ def generate_roster_endpoint(
 
     validated_request = validate_roster_request(
         request
+    )
+
+    # The group must exist and be active, and every member in the
+    # request must belong to it.
+    group = get_active_group_or_error(
+        db,
+        validated_request.group_number,
+    )
+
+    validate_members_belong_to_group(
+        db,
+        group,
+        [member.employee_id for member in validated_request.requirements],
     )
 
     # --------------------------------------------------
@@ -368,6 +400,10 @@ def upload_roster(
             status_code=400,
             detail="Only .xlsx Excel files are supported.",
         )
+
+    # The group must exist (inactive groups are allowed, so old
+    # rosters can still be re-uploaded).
+    group_number = get_group_or_404(db, group_number).group_number
 
     # --------------------------------------------------
     # 2. Read the uploaded file.

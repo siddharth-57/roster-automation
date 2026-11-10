@@ -34,3 +34,8 @@ class RosterGenerationRequest(BaseModel):
     )
 
     requirements: list[MemberRequirements]
+
+    @field_validator("group_number")
+    @classmethod
+    def strip_group_number(cls, value: str) -> str:
+        return value.strip()

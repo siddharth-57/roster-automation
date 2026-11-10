@@ -10,6 +10,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.group import Group
 from app.models.roster import Roster
 from app.models.roster_assignment import RosterAssignment
 from app.models.team_member import TeamMember
@@ -547,13 +548,23 @@ def read_roster_excel(
             }
         }
 
-    The employee name in the Excel file is matched against
-    the team member table.
+    The employee names in the Excel file are matched against
+    the members of the selected group.
     """
 
+    # Only this group's members (active or not, so older rosters
+    # can still be uploaded) are matched against the file.
+    group = db.scalar(
+        select(Group).where(
+            Group.group_number == group_number
+        )
+    )
+
     members = db.scalars(
-        select(TeamMember)
-    ).all()
+        select(TeamMember).where(
+            TeamMember.group_id == group.group_id
+        )
+    ).all() if group else []
 
     member_by_name = {
         member.name.strip().lower(): member.employee_id
@@ -646,8 +657,8 @@ def parse_roster_workbook(
         if not employee_id:
             raise ValueError(
                 f"Employee '{name}' from the "
-                f"Excel file does not exist "
-                f"in the team members table."
+                f"Excel file is not a member "
+                f"of group {group_number}."
             )
 
         roster[employee_id] = {}
