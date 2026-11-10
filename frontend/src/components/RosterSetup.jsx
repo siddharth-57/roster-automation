@@ -8,6 +8,7 @@ import {
   generateRoster,
   downloadRoster,
   uploadRoster,
+  deleteRoster,
 } from "../services/roster";
 
 
@@ -122,6 +123,72 @@ function validateMemberRequirements(
 }
 
 
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+
+// Turns {"employee_id":"E002","day":3,"shift":"B"} into
+// "Geetanjali Chivukula: B shift on 3 Aug 2026 could not be given."
+function formatRelaxedRequirement(
+  requirement,
+  members,
+  year,
+  month
+) {
+  if (typeof requirement === "string") {
+    return requirement;
+  }
+
+  const member = members.find(
+    (m) =>
+      m.employee_id ===
+      requirement.employee_id
+  );
+
+  const name =
+    member?.name?.trim() ||
+    requirement.employee_id;
+
+  const shiftLabel =
+    ["W", "H", "L"].includes(
+      requirement.shift
+    )
+      ? requirement.shift
+      : `${requirement.shift} shift`;
+
+  return (
+    `${name}: ${shiftLabel} on ` +
+    `${requirement.day} ${MONTH_NAMES[month - 1]} ${year} ` +
+    `could not be given.`
+  );
+}
+
+
+// Validator messages start with the employee ID, e.g.
+// "E002: more than 5 continuous working days ending on day 7."
+// Show the member's name instead.
+function withMemberName(message, members) {
+  const member = members.find((m) =>
+    message.startsWith(
+      `${m.employee_id}:`
+    )
+  );
+
+  if (!member) {
+    return message;
+  }
+
+  return (
+    member.name.trim() +
+    message.slice(
+      member.employee_id.length
+    )
+  );
+}
+
+
 function RosterSetup() {
   // --------------------------------------------------
   // CREATE ROSTER STATE
@@ -153,6 +220,14 @@ function RosterSetup() {
   const [rosterStatus, setRosterStatus] =
     useState(null);
 
+  // True while the backend is generating a roster
+  // (the solver can take up to a minute).
+  const [generating, setGenerating] =
+    useState(false);
+
+  const [elapsedSeconds, setElapsedSeconds] =
+    useState(0);
+
 
   // --------------------------------------------------
   // DOWNLOAD / UPLOAD ROSTER STATE
@@ -181,6 +256,23 @@ function RosterSetup() {
   const [downloading, setDownloading] =
     useState(false);
 
+  const [deleting, setDeleting] =
+    useState(false);
+
+  const [showDeleteConfirm, setShowDeleteConfirm] =
+    useState(false);
+
+
+  // Roster name in the same format the backend uses,
+  // e.g. "2026-08-Group-08". Shown in the delete dialog.
+  const fileRosterName =
+    `${fileYear}-${String(
+      fileMonth
+    ).padStart(2, "0")}-Group-${fileGroupNumber.trim()}`;
+
+  const fileBusy =
+    uploading || downloading || deleting;
+
 
   // --------------------------------------------------
   // LOAD TEAM MEMBERS
@@ -189,6 +281,56 @@ function RosterSetup() {
   useEffect(() => {
     loadMembers();
   }, []);
+
+
+  // --------------------------------------------------
+  // CLOSE DELETE DIALOG WITH ESCAPE KEY
+  // --------------------------------------------------
+
+  useEffect(() => {
+    if (!showDeleteConfirm) {
+      return;
+    }
+
+    const handleKeyDown = (event) => {
+      if (
+        event.key === "Escape" &&
+        !deleting
+      ) {
+        setShowDeleteConfirm(false);
+      }
+    };
+
+    window.addEventListener(
+      "keydown",
+      handleKeyDown
+    );
+
+    return () =>
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown
+      );
+  }, [showDeleteConfirm, deleting]);
+
+
+  // --------------------------------------------------
+  // ELAPSED TIME WHILE GENERATING
+  // --------------------------------------------------
+
+  useEffect(() => {
+    if (!generating) {
+      return;
+    }
+
+    setElapsedSeconds(0);
+
+    const timer = setInterval(() => {
+      setElapsedSeconds((seconds) => seconds + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [generating]);
 
 
   const loadMembers = async () => {
@@ -238,7 +380,7 @@ function RosterSetup() {
   // --------------------------------------------------
 
   const handleGenerateRoster = async () => {
-    if (hasErrors) {
+    if (hasErrors || generating) {
       return;
     }
 
@@ -293,6 +435,8 @@ function RosterSetup() {
         formattedRequirements,
     };
 
+
+    setGenerating(true);
 
     try {
       // --------------------------------------------------
@@ -350,6 +494,12 @@ function RosterSetup() {
           generationResponse
             .relaxed_requirements ||
           [],
+
+        // Month/year this roster was generated for,
+        // so the dates still read correctly if the
+        // dropdowns are changed afterwards.
+        rosterYear: year,
+        rosterMonth: month,
       });
 
 
@@ -385,6 +535,26 @@ function RosterSetup() {
 
 
       // --------------------------------------------------
+      // Safety net: roster broke a hard rule and was
+      // not saved (backend sends {message, errors}).
+      // --------------------------------------------------
+
+      if (
+        detail &&
+        typeof detail === "object" &&
+        Array.isArray(detail.errors)
+      ) {
+        setRosterStatus({
+          type: "error",
+          message: detail.message,
+          errors: detail.errors,
+        });
+
+        return;
+      }
+
+
+      // --------------------------------------------------
       // Other generation errors
       // --------------------------------------------------
 
@@ -398,6 +568,9 @@ function RosterSetup() {
         type: "error",
         message,
       });
+
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -806,6 +979,92 @@ function RosterSetup() {
 
 
   // --------------------------------------------------
+  // DELETE ROSTER
+  // --------------------------------------------------
+
+  // Step 1: Delete button only opens the confirmation dialog.
+  const handleDeleteClick = () => {
+    setFileStatus(null);
+
+    if (!fileGroupNumber.trim()) {
+      setFileStatus({
+        type: "error",
+        message:
+          "Please enter a group number.",
+      });
+
+      return;
+    }
+
+    setShowDeleteConfirm(true);
+  };
+
+
+  // Step 2: the actual delete runs only after confirmation.
+  const handleConfirmDelete =
+    async () => {
+
+      try {
+        setDeleting(true);
+
+        const response =
+          await deleteRoster(
+            fileYear,
+            fileMonth,
+            fileGroupNumber.trim()
+          );
+
+        setFileStatus({
+          type: "success",
+          message:
+            response.message ||
+            `Roster ${fileRosterName} deleted successfully.`,
+        });
+
+      } catch (error) {
+        const statusCode =
+          error.response?.status;
+
+        const detail =
+          error.response?.data?.detail;
+
+
+        if (statusCode === 404) {
+          setFileStatus({
+            type: "error",
+            message:
+              typeof detail === "string"
+                ? detail
+                : "Roster does not exist.",
+          });
+
+          return;
+        }
+
+
+        setFileStatus({
+          type: "error",
+          message:
+            typeof detail === "string"
+              ? detail
+              : "Failed to delete roster.",
+        });
+
+      } finally {
+        setDeleting(false);
+        setShowDeleteConfirm(false);
+      }
+    };
+
+
+  const handleCancelDelete = () => {
+    if (!deleting) {
+      setShowDeleteConfirm(false);
+    }
+  };
+
+
+  // --------------------------------------------------
   // LOADING
   // --------------------------------------------------
 
@@ -1074,16 +1333,49 @@ function RosterSetup() {
             className="primary-button"
             disabled={
               hasErrors ||
-              !groupNumber.trim()
+              !groupNumber.trim() ||
+              generating
             }
             onClick={
               handleGenerateRoster
             }
           >
-            Generate Roster
+            {generating
+              ? "Generating..."
+              : "Generate Roster"}
           </button>
 
         </div>
+
+
+        {/* --------------------------------------------------
+            GENERATING MESSAGE
+            -------------------------------------------------- */}
+
+        {generating && (
+          <div
+            className="generating-box"
+            role="status"
+            aria-live="polite"
+          >
+            <span
+              className="spinner"
+              aria-hidden="true"
+            />
+
+            <div>
+              <p className="generating-title">
+                Generating roster...
+              </p>
+
+              <p className="generating-text">
+                This can take up to a minute.
+                Please don't close or refresh
+                the page. ({elapsedSeconds}s)
+              </p>
+            </div>
+          </div>
+        )}
 
 
         {/* ==================================================
@@ -1245,14 +1537,12 @@ function RosterSetup() {
                                   index
                                 }
                               >
-                                {
-                                  typeof requirement ===
-                                  "string"
-                                    ? requirement
-                                    : JSON.stringify(
-                                        requirement
-                                      )
-                                }
+                                {formatRelaxedRequirement(
+                                  requirement,
+                                  members,
+                                  rosterStatus.rosterYear,
+                                  rosterStatus.rosterMonth
+                                )}
                               </li>
                             )
                           )
@@ -1294,11 +1584,37 @@ function RosterSetup() {
 
               {rosterStatus.type ===
                 "error" && (
-                <p className="status-message">
-                  {
-                    rosterStatus.message
-                  }
-                </p>
+                <>
+                  <p className="status-message">
+                    {
+                      rosterStatus.message
+                    }
+                  </p>
+
+                  {rosterStatus.errors?.length >
+                    0 && (
+                    <div className="status-section warnings-section">
+
+                      <h3>
+                        Rules broken
+                      </h3>
+
+                      <ul>
+                        {rosterStatus.errors.map(
+                          (error, index) => (
+                            <li key={index}>
+                              {withMemberName(
+                                error,
+                                members
+                              )}
+                            </li>
+                          )
+                        )}
+                      </ul>
+
+                    </div>
+                  )}
+                </>
               )}
 
             </div>
@@ -1318,13 +1634,13 @@ function RosterSetup() {
         <div className="app-section-header">
 
           <h1>
-            Download / Upload Roster
+            Download / Upload / Delete Roster
           </h1>
 
           <p>
-            Upload an existing Excel roster
-            or download a roster from the
-            database.
+            Upload an existing Excel roster,
+            or download or delete a roster
+            from the database.
           </p>
 
         </div>
@@ -1436,7 +1752,7 @@ function RosterSetup() {
 
 
         {/* --------------------------------------------------
-            UPLOAD / DOWNLOAD BUTTONS
+            UPLOAD / DOWNLOAD / DELETE BUTTONS
             -------------------------------------------------- */}
 
         <div className="action-row">
@@ -1446,10 +1762,7 @@ function RosterSetup() {
             onClick={
               handleUploadRoster
             }
-            disabled={
-              uploading ||
-              downloading
-            }
+            disabled={fileBusy}
           >
             {uploading
               ? "Uploading..."
@@ -1458,18 +1771,28 @@ function RosterSetup() {
 
 
           <button
-            className="secondary-button"
+            className="secondary-button success-button"
             onClick={
               handleDownloadRoster
             }
-            disabled={
-              uploading ||
-              downloading
-            }
+            disabled={fileBusy}
           >
             {downloading
               ? "Downloading..."
               : "Download"}
+          </button>
+
+
+          <button
+            className="secondary-button danger-button"
+            onClick={
+              handleDeleteClick
+            }
+            disabled={fileBusy}
+          >
+            {deleting
+              ? "Deleting..."
+              : "Delete"}
           </button>
 
         </div>
@@ -1530,6 +1853,81 @@ function RosterSetup() {
         )}
 
       </section>
+
+
+      {/* ==================================================
+          DELETE CONFIRMATION DIALOG
+          ================================================== */}
+
+      {showDeleteConfirm && (
+        <div
+          className="modal-overlay"
+          onClick={
+            handleCancelDelete
+          }
+        >
+          <div
+            className="modal-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-dialog-title"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+
+            <h2 id="delete-dialog-title">
+              Delete roster?
+            </h2>
+
+            <p>
+              This will permanently delete{" "}
+              <strong>
+                {fileRosterName}
+              </strong>{" "}
+              and all of its shift
+              assignments. This cannot be
+              undone.
+            </p>
+
+            <p className="modal-note">
+              If next month's roster hasn't
+              been generated yet, it will no
+              longer see this month's last
+              days when it is generated.
+            </p>
+
+
+            <div className="modal-actions">
+
+              <button
+                className="secondary-button"
+                onClick={
+                  handleCancelDelete
+                }
+                disabled={deleting}
+                autoFocus
+              >
+                Cancel
+              </button>
+
+              <button
+                className="primary-button danger-button-solid"
+                onClick={
+                  handleConfirmDelete
+                }
+                disabled={deleting}
+              >
+                {deleting
+                  ? "Deleting..."
+                  : "Delete Roster"}
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

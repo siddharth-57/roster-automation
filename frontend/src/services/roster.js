@@ -78,3 +78,20 @@ export const uploadRoster = async (
 
   return response.data;
 };
+
+
+// ------------------------------------------------------
+// DELETE ROSTER
+// ------------------------------------------------------
+
+export const deleteRoster = async (
+  year,
+  month,
+  groupNumber
+) => {
+  const response = await axios.delete(
+    `${API_BASE_URL}/rosters/${year}/${month}/${groupNumber}`
+  );
+
+  return response.data;
+};

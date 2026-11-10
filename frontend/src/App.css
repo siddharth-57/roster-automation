@@ -1086,3 +1086,145 @@ body {
       linear-gradient(135deg, #35115f 0%, #6d28d9 75%, #9a3412 135%);
   }
 }
+
+
+/* --------------------------------------------------
+   DELETE BUTTON
+   -------------------------------------------------- */
+
+.danger-button {
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #ef4444;
+}
+
+.primary-button.danger-button-solid {
+  background: #dc2626;
+  background-image: none;
+}
+
+.primary-button.danger-button-solid:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+
+/* --------------------------------------------------
+   CONFIRMATION DIALOG
+   -------------------------------------------------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+}
+
+.modal-dialog {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+}
+
+.modal-dialog h2 {
+  margin: 0 0 12px;
+}
+
+.modal-dialog p {
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.modal-note {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+/* --------------------------------------------------
+   DOWNLOAD BUTTON (green)
+   -------------------------------------------------- */
+
+.secondary-button.success-button {
+  background: #16a34a;
+  background-image: none;
+  border-color: #16a34a;
+  color: #ffffff;
+}
+
+.secondary-button.success-button:hover:not(:disabled) {
+  background: #15803d;
+  border-color: #15803d;
+}
+
+.secondary-button.success-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+/* --------------------------------------------------
+   GENERATING MESSAGE
+   -------------------------------------------------- */
+
+.generating-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 16px 20px;
+  border: 1px solid #c4b5fd;
+  border-left: 4px solid #7c3aed;
+  border-radius: 12px;
+  background: #f5f3ff;
+}
+
+.generating-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+  color: #2e1065;
+}
+
+.generating-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.spinner {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 3px solid #ddd6fe;
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}

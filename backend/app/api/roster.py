@@ -26,6 +26,12 @@ from app.models.roster_assignment import RosterAssignment
 
 from app.database import get_db
 
+import logging
+
+from app.scheduler.validator import validate_roster as validate_generated_roster
+
+logger = logging.getLogger(__name__)
+
 
 router = APIRouter(
     prefix="/rosters",
@@ -67,8 +73,8 @@ def generate_roster_endpoint(
     """
     Validate the roster request, check for an existing roster,
     retrieve previous-roster history, build the scheduling
-    context, execute all five scheduling passes, save the
-    generated roster, and return the result.
+    context, run the CP-SAT solver, save the generated roster,
+    and return the result.
     """
 
     # --------------------------------------------------
@@ -165,15 +171,69 @@ def generate_roster_endpoint(
     )
 
     # --------------------------------------------------
-    # 8. Run Pass 1 → Pass 2 → Pass 3 → Pass 4 → Pass 5.
+    # 8. Run the CP-SAT solver.
     # --------------------------------------------------
 
-    scheduler = generate_roster(
+    result = generate_roster(
         context
     )
 
     # --------------------------------------------------
-    # 9. Save the generated roster to PostgreSQL.
+    # 9. No valid roster exists (hard rules can't all be
+    #    met, e.g. too few members). Don't save anything.
+    # --------------------------------------------------
+
+    if not result.roster:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Roster could not be generated. "
+                + " ".join(result.warnings)
+            ),
+        )
+
+
+
+    # --------------------------------------------------
+    # Safety net: re-check every hard rule before saving.
+    # Should never fail; if it does, the solver has a bug.
+    # --------------------------------------------------
+
+    validation_errors = validate_generated_roster(
+        result.roster,
+        validated_request.year,
+        validated_request.month,
+        validated_request.public_holidays,
+        previous_assignments,
+    )
+
+    if validation_errors:
+
+        # Full details for the developer (docker compose logs backend)
+        logger.error(
+            "Generated roster %s failed validation: %s",
+            roster_name,
+            validation_errors,
+        )
+
+        # Clear explanation for the TL
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": (
+                    "The roster was generated but failed the final "
+                    "rule check, so it was NOT saved. This is a "
+                    "problem in the application, not in the "
+                    "requirements you entered. Please report it to "
+                    "the developer along with the details below."
+                ),
+                "errors": validation_errors,
+            },
+        )
+
+
+    # --------------------------------------------------
+    # 10. Save the generated roster to PostgreSQL.
     # --------------------------------------------------
 
     roster_record = save_roster(
@@ -181,11 +241,11 @@ def generate_roster_endpoint(
         year=validated_request.year,
         month=validated_request.month,
         group_number=validated_request.group_number,
-        roster=scheduler.roster,
+        roster=result.roster,
     )
 
     # --------------------------------------------------
-    # 10. Return the generated roster and scheduling
+    # 11. Return the generated roster and scheduling
     #     metadata.
     # --------------------------------------------------
 
@@ -193,9 +253,9 @@ def generate_roster_endpoint(
         "message": "Roster generated successfully",
         "roster_id": roster_record.roster_id,
         "roster_name": roster_record.roster_name,
-        "roster": scheduler.roster,
-        "warnings": scheduler.warnings,
-        "relaxed_requirements": scheduler.relaxed_requirements,
+        "roster": result.roster,
+        "warnings": result.warnings,
+        "relaxed_requirements": result.relaxed_requirements,
     }
 
 
@@ -462,4 +522,85 @@ def upload_roster(
         "action": "overwritten",
         "roster_id": roster.roster_id,
         "roster_name": roster.roster_name,
+    }
+    
+# ------------------------------------------------------
+# DELETE ROSTER
+# ------------------------------------------------------
+
+@router.delete("/{year}/{month}/{group_number}")
+def delete_roster(
+    year: int,
+    month: int,
+    group_number: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Delete a roster and all of its assignments.
+
+    Assignments are deleted first, then the roster itself,
+    in a single transaction: either both go, or nothing changes.
+    """
+
+    # --------------------------------------------------
+    # 1. Find the roster.
+    # --------------------------------------------------
+
+    roster_name = (
+        f"{year}-"
+        f"{month:02d}-Group-{group_number}"
+    )
+
+    roster = db.scalar(
+        select(Roster).where(
+            Roster.roster_name == roster_name
+        )
+    )
+
+    if not roster:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Roster '{roster_name}' "
+                f"does not exist."
+            ),
+        )
+
+    # --------------------------------------------------
+    # 2. Delete assignments, then the roster.
+    # --------------------------------------------------
+
+    try:
+        deleted_assignments = (
+            db.query(RosterAssignment)
+            .filter(
+                RosterAssignment.roster_id
+                == roster.roster_id
+            )
+            .delete(synchronize_session=False)
+        )
+
+        db.delete(roster)
+
+        db.commit()
+
+    except Exception:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "The roster could not be deleted. "
+                "No changes were made to the database."
+            ),
+        )
+
+    # --------------------------------------------------
+    # 3. Return result.
+    # --------------------------------------------------
+
+    return {
+        "message": f"Roster '{roster_name}' deleted successfully.",
+        "roster_name": roster_name,
+        "deleted_assignments": deleted_assignments,
     }

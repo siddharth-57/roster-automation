@@ -6,3 +6,4 @@ alembic
 pytest
 openpyxl
 python-multipart
+ortools>=9.10

@@ -1,11 +1,13 @@
-# The functions in this file validate if the entire roster is vaild or not and follows the constraints or not
+# The functions in this file validate if the entire roster is valid or not and follows the constraints or not
 # This file checks the following core constraints:
 # 1. A/B/C shifts everyday have atleast one member
-# 2. each member every month has 3 ≤ C shifts ≤ 5
-# 3. max 1 person in C shift per day
-# 4. no shifts the next day after C shifts
-# 5. max 6 day working limit
-# 6. all members must receive equal W and H every month
+# 2. each member every month has MIN_C_PER_MEMBER <= C shifts <= MAX_C_PER_MEMBER
+# 3. max MAX_C_PER_DAY members in C shift per day
+# 4. the day after a C shift must be C/W/H/L (including previous month's last day)
+# 5. max MAX_CONTINUOUS_WORKING_DAYS continuous working days (including previous month's streak)
+# 6. all members must receive the required W and H every month
+# 7. max WEEKEND_MAX_PER_SHIFT members in each of A/B/G on Saturdays and Sundays
+# 8. max MAX_G_PER_MEMBER G shifts per member per month
 
 import calendar
 from datetime import date
@@ -15,10 +17,13 @@ from app.scheduler.config import (
     MAX_C_PER_DAY,
     MIN_C_PER_MEMBER,
     MAX_CONTINUOUS_WORKING_DAYS,
+    MAX_G_PER_MEMBER,
+    WEEKEND_MAX_PER_SHIFT,
 )
 from app.scheduler.constraints import (
     WORKING_SHIFTS,
     NON_WORKING_SHIFTS,
+    get_previous_working_streak,
 )
 
 
@@ -37,6 +42,23 @@ def count_shift(
         value == shift
         for value in assignments.values()
     )
+
+
+def get_previous_last_shift(
+    employee_id: str,
+    previous_assignments: dict | None,
+) -> str | None:
+    """Return the member's shift on the last day of the previous month."""
+
+    if not previous_assignments:
+        return None
+
+    employee_history = previous_assignments.get(employee_id, {})
+
+    if not employee_history:
+        return None
+
+    return employee_history[max(employee_history)]
 
 
 def validate_daily_staffing(
@@ -125,6 +147,60 @@ def validate_c_shift_daily_limit(
     return errors
 
 
+def validate_g_shift_limit(
+    roster: dict,
+) -> list[str]:
+
+    errors = []
+
+    for employee_id, assignments in roster.items():
+
+        g_count = count_shift(
+            assignments,
+            "G",
+        )
+
+        if g_count > MAX_G_PER_MEMBER:
+            errors.append(
+                f"{employee_id}: {g_count} G shifts "
+                f"(maximum is {MAX_G_PER_MEMBER})."
+            )
+
+    return errors
+
+
+def validate_weekend_max_per_shift(
+    roster: dict,
+    year: int,
+    month: int,
+) -> list[str]:
+
+    errors = []
+
+    days_in_month = calendar.monthrange(year, month)[1]
+
+    for day in range(1, days_in_month + 1):
+
+        if date(year, month, day).weekday() < 5:
+            continue  # weekday
+
+        for shift in ("A", "B", "G"):
+
+            count = sum(
+                assignments.get(day) == shift
+                for assignments in roster.values()
+            )
+
+            if count > WEEKEND_MAX_PER_SHIFT:
+                errors.append(
+                    f"Day {day} (weekend): {count} members "
+                    f"in {shift} shift "
+                    f"(maximum is {WEEKEND_MAX_PER_SHIFT})."
+                )
+
+    return errors
+
+
 def validate_single_shift_per_day(
     roster: dict,
 ) -> list[str]:
@@ -153,11 +229,23 @@ def validate_single_shift_per_day(
 def validate_c_continuation(
     roster: dict,
     days_in_month: int,
+    previous_assignments: dict | None = None,
 ) -> list[str]:
 
     errors = []
+    allowed_after_c = {"C", "W", "H", "L"}
 
     for employee_id, assignments in roster.items():
+
+        # Day 1 vs the previous month's last day
+        if (
+            get_previous_last_shift(employee_id, previous_assignments) == "C"
+            and assignments.get(1) not in allowed_after_c
+        ):
+            errors.append(
+                f"{employee_id}: previous month ended on C "
+                f"but day 1 is {assignments.get(1)}."
+            )
 
         for day in range(2, days_in_month + 1):
 
@@ -169,12 +257,7 @@ def validate_c_continuation(
 
             if previous_shift == "C":
 
-                if current_shift not in {
-                    "C",
-                    "W",
-                    "H",
-                    "L",
-                }:
+                if current_shift not in allowed_after_c:
 
                     errors.append(
                         f"{employee_id}: day {day - 1} "
@@ -188,13 +271,18 @@ def validate_c_continuation(
 def validate_continuous_working_days(
     roster: dict,
     days_in_month: int,
+    previous_assignments: dict | None = None,
 ) -> list[str]:
 
     errors = []
 
     for employee_id, assignments in roster.items():
 
-        streak = 0
+        # Start with the working streak carried over from last month
+        streak = get_previous_working_streak(
+            employee_id,
+            previous_assignments,
+        )
 
         for day in range(1, days_in_month + 1):
 
@@ -288,6 +376,7 @@ def validate_roster(
     year: int,
     month: int,
     public_holidays: int,
+    previous_assignments: dict | None = None,
 ) -> list[str]:
 
     days_in_month = calendar.monthrange(
@@ -324,9 +413,24 @@ def validate_roster(
     )
 
     errors.extend(
+        validate_g_shift_limit(
+            roster
+        )
+    )
+
+    errors.extend(
+        validate_weekend_max_per_shift(
+            roster,
+            year,
+            month,
+        )
+    )
+
+    errors.extend(
         validate_c_continuation(
             roster,
             days_in_month,
+            previous_assignments,
         )
     )
 
@@ -334,6 +438,7 @@ def validate_roster(
         validate_continuous_working_days(
             roster,
             days_in_month,
+            previous_assignments,
         )
     )
 
