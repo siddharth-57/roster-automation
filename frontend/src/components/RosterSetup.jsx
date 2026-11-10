@@ -1,6 +1,6 @@
 // Create Roster setup component
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   getActiveTeamMembers,
@@ -10,6 +10,13 @@ import {
   uploadRoster,
   deleteRoster,
 } from "../services/roster";
+
+import {
+  getGroups,
+  formatGroupLabel,
+  GROUPS_CHANGED_EVENT,
+  MEMBERS_CHANGED_EVENT,
+} from "../services/groups";
 
 
 const SHIFTS = ["A", "B", "C", "G", "L", "W"];
@@ -217,6 +224,19 @@ function RosterSetup() {
 
   const [loading, setLoading] = useState(true);
 
+  // Active groups (for generating) and all groups including
+  // inactive ones (for downloading/uploading/deleting old rosters)
+  const [groups, setGroups] = useState([]);
+
+  const [fileGroups, setFileGroups] = useState([]);
+
+  const [membersLoading, setMembersLoading] =
+    useState(false);
+
+  // The group whose members are currently being loaded, so a slow
+  // response for a previously selected group is ignored.
+  const latestGroupRef = useRef("");
+
   const [rosterStatus, setRosterStatus] =
     useState(null);
 
@@ -278,9 +298,45 @@ function RosterSetup() {
   // LOAD TEAM MEMBERS
   // --------------------------------------------------
 
+  // Groups: load once, and again whenever the Team Members page
+  // changes a group.
   useEffect(() => {
-    loadMembers();
+    loadGroups();
+
+    const handleGroupsChanged = () => loadGroups();
+
+    window.addEventListener(
+      GROUPS_CHANGED_EVENT,
+      handleGroupsChanged
+    );
+
+    return () =>
+      window.removeEventListener(
+        GROUPS_CHANGED_EVENT,
+        handleGroupsChanged
+      );
   }, []);
+
+
+  // Members: load the selected group's members, and reload them
+  // whenever the Team Members page adds, moves or deactivates one.
+  useEffect(() => {
+    loadMembers(groupNumber);
+
+    const handleMembersChanged = () =>
+      loadMembers(groupNumber);
+
+    window.addEventListener(
+      MEMBERS_CHANGED_EVENT,
+      handleMembersChanged
+    );
+
+    return () =>
+      window.removeEventListener(
+        MEMBERS_CHANGED_EVENT,
+        handleMembersChanged
+      );
+  }, [groupNumber]);
 
 
   // --------------------------------------------------
@@ -333,30 +389,124 @@ function RosterSetup() {
   }, [generating]);
 
 
-  const loadMembers = async () => {
+  // --------------------------------------------------
+  // LOAD GROUPS
+  // --------------------------------------------------
+
+  const loadGroups = async () => {
     try {
-      const data = await getActiveTeamMembers();
+      const [activeGroups, allGroups] =
+        await Promise.all([
+          getGroups(false),
+          getGroups(true),
+        ]);
+
+      setGroups(activeGroups);
+      setFileGroups(allGroups);
+
+      // Keep the current selection if it still exists,
+      // otherwise select the first active group.
+      const firstActive =
+        activeGroups[0]?.group_number || "";
+
+      setGroupNumber((current) =>
+        activeGroups.some(
+          (group) =>
+            group.group_number === current
+        )
+          ? current
+          : firstActive
+      );
+
+      setFileGroupNumber((current) =>
+        allGroups.some(
+          (group) =>
+            group.group_number === current
+        )
+          ? current
+          : firstActive ||
+            allGroups[0]?.group_number ||
+            ""
+      );
+
+    } catch (error) {
+      console.error(
+        "Failed to load groups:",
+        error
+      );
+
+      setErrors((previous) => ({
+        ...previous,
+        general: "Failed to load groups.",
+      }));
+
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  // --------------------------------------------------
+  // LOAD THE SELECTED GROUP'S MEMBERS
+  // --------------------------------------------------
+
+  const loadMembers = async (selectedGroup) => {
+    latestGroupRef.current = selectedGroup;
+
+    if (!selectedGroup) {
+      setMembers([]);
+      setRequirements({});
+      return;
+    }
+
+    setMembersLoading(true);
+
+    try {
+      const data =
+        await getActiveTeamMembers(
+          selectedGroup
+        );
+
+      // A different group was selected meanwhile: ignore this result
+      if (latestGroupRef.current !== selectedGroup) {
+        return;
+      }
 
       setMembers(data);
 
-      const initialRequirements = {};
+      // Keep anything already typed for members who are still
+      // listed; start empty for everyone else.
+      setRequirements((previous) => {
+        const next = {};
 
-      data.forEach((member) => {
-        initialRequirements[
-          member.employee_id
-        ] = {
-          A: "",
-          B: "",
-          C: "",
-          G: "",
-          L: "",
-          W: "",
-        };
+        data.forEach((member) => {
+          next[member.employee_id] =
+            previous[member.employee_id] || {
+              A: "",
+              B: "",
+              C: "",
+              G: "",
+              L: "",
+              W: "",
+            };
+        });
+
+        return next;
       });
 
-      setRequirements(
-        initialRequirements
-      );
+      // Drop validation errors for members no longer listed
+      setErrors((previous) => {
+        const next = { general: "" };
+
+        data.forEach((member) => {
+          if (previous[member.employee_id]) {
+            next[member.employee_id] =
+              previous[member.employee_id];
+          }
+        });
+
+        return next;
+      });
 
     } catch (error) {
       console.error(
@@ -364,13 +514,16 @@ function RosterSetup() {
         error
       );
 
-      setErrors({
+      setErrors((previous) => ({
+        ...previous,
         general:
           "Failed to load team members.",
-      });
+      }));
 
     } finally {
-      setLoading(false);
+      if (latestGroupRef.current === selectedGroup) {
+        setMembersLoading(false);
+      }
     }
   };
 
@@ -1071,7 +1224,7 @@ function RosterSetup() {
   if (loading) {
     return (
       <p>
-        Loading team members...
+        Loading groups...
       </p>
     );
   }
@@ -1161,17 +1314,36 @@ function RosterSetup() {
 
           <div className="form-field">
             <label>
-              Group Number:
+              Group:
 
-              <input
-                type="text"
+              <select
                 value={groupNumber}
-                onChange={(event) =>
+                disabled={
+                  generating ||
+                  groups.length === 0
+                }
+                onChange={(event) => {
                   setGroupNumber(
                     event.target.value
-                  )
-                }
-              />
+                  );
+                  setRosterStatus(null);
+                }}
+              >
+                {groups.length === 0 && (
+                  <option value="">
+                    No groups yet
+                  </option>
+                )}
+
+                {groups.map((group) => (
+                  <option
+                    key={group.group_id}
+                    value={group.group_number}
+                  >
+                    {formatGroupLabel(group)}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
 
@@ -1207,6 +1379,32 @@ function RosterSetup() {
         <h2 className="subsection-title">
           Member Requirements
         </h2>
+
+
+        {membersLoading && (
+          <p className="info-text">
+            Loading members...
+          </p>
+        )}
+
+        {!membersLoading &&
+          groupNumber &&
+          members.length === 0 && (
+            <p className="info-text">
+              Group {groupNumber} has no active
+              members yet. Add members in the
+              Team Members section below.
+            </p>
+          )}
+
+        {!membersLoading &&
+          groups.length === 0 && (
+            <p className="info-text">
+              There are no groups yet. Create
+              one in the Team Members section
+              below.
+            </p>
+          )}
 
 
         <div className="table-container">
@@ -1334,6 +1532,8 @@ function RosterSetup() {
             disabled={
               hasErrors ||
               !groupNumber.trim() ||
+              members.length === 0 ||
+              membersLoading ||
               generating
             }
             onClick={
@@ -1706,19 +1906,35 @@ function RosterSetup() {
 
           <div className="form-field">
             <label>
-              Group Number:
+              Group:
 
-              <input
-                type="text"
-                value={
-                  fileGroupNumber
+              <select
+                value={fileGroupNumber}
+                disabled={
+                  fileBusy ||
+                  fileGroups.length === 0
                 }
                 onChange={(event) =>
                   setFileGroupNumber(
                     event.target.value
                   )
                 }
-              />
+              >
+                {fileGroups.length === 0 && (
+                  <option value="">
+                    No groups yet
+                  </option>
+                )}
+
+                {fileGroups.map((group) => (
+                  <option
+                    key={group.group_id}
+                    value={group.group_number}
+                  >
+                    {formatGroupLabel(group)}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
 

@@ -31,10 +31,10 @@ dist/
 # Logs
 *.log
 
-# Some Other Files
-test_results.txt
-roster_assignments.csv
+# # Some Other Files
+# test_results.txt
+# roster_assignments.csv
 
-# Algo Design files
-Passes.rtf
-Rules.rtf
+# # Algo Design files
+# Passes.rtf
+# Rules.rtf

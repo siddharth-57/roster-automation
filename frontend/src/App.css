@@ -1228,3 +1228,46 @@ body {
     animation-duration: 2.4s;
   }
 }
+
+/* =========================================================
+   GROUPS
+   ========================================================= */
+
+/* Small grey note above the requirements table
+   ("Loading members...", "Group 09 has no active members yet...") */
+.info-text {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  background: #faf7fd;
+  border: 1px solid #e7ddf0;
+  color: #6b5b78;
+  font-size: 0.9rem;
+}
+
+/* Add Group form: number, name, button */
+.add-group-form {
+  display: grid;
+  grid-template-columns:
+    minmax(160px, 1fr)
+    minmax(220px, 2fr)
+    auto;
+  gap: 14px;
+  align-items: start;
+}
+
+/* Add Member form now has a group selector: ID, name, group, button */
+.add-member-form.with-group {
+  grid-template-columns:
+    minmax(150px, 1fr)
+    minmax(200px, 2fr)
+    minmax(170px, 1fr)
+    auto;
+}
+
+@media (max-width: 900px) {
+  .add-group-form,
+  .add-member-form.with-group {
+    grid-template-columns: 1fr;
+  }
+}

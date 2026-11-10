@@ -6,18 +6,21 @@
 │   │   ├── script.py.mako
 │   │   └── versions
 │   │       ├── 7afe0478e290_allow_multiple_roster_groups_per_month.py
+│   │       ├── A1f3c9e2b7d4_add_groups_and_member_group.py
 │   │       ├── d7a1b24c255b_remove_display_order_uniqueness.py
 │   │       └── e4e759ba2dab_create_roster_database_tables.py
 │   ├── alembic.ini
 │   ├── app
 │   │   ├── api
 │   │   │   ├── __init__.py
+│   │   │   ├── groups.py
 │   │   │   ├── roster.py
 │   │   │   └── team_members.py
 │   │   ├── database.py
 │   │   ├── main.py
 │   │   ├── models
 │   │   │   ├── __init__.py
+│   │   │   ├── group.py
 │   │   │   ├── roster_assignment.py
 │   │   │   ├── roster.py
 │   │   │   └── team_member.py
@@ -27,15 +30,17 @@
 │   │   │   ├── constraints.py
 │   │   │   ├── context_builder.py
 │   │   │   ├── context.py
+│   │   │   ├── cp_solver.py
 │   │   │   ├── orchestrator.py
-│   │   │   ├── scheduler.py
 │   │   │   └── validator.py
 │   │   ├── schemas
 │   │   │   ├── __init__.py
+│   │   │   ├── group.py
 │   │   │   ├── roster.py
 │   │   │   └── team_member.py
 │   │   └── services
 │   │       ├── __init__.py
+│   │       ├── groups.py
 │   │       ├── previous_roster.py
 │   │       ├── roster_excel.py
 │   │       ├── roster_persistence.py
@@ -43,25 +48,7 @@
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── tests
-│       ├── test_active_requirements_implementation.py
-│       ├── test_pass1.py
-│       ├── test_pass2_orchestration.py
-│       ├── test_pass2_step1.py
-│       ├── test_pass2_step2a.py
-│       ├── test_pass2_step2b.py
-│       ├── test_pass2_step2c_commit.py
-│       ├── test_pass2_step2c_main.py
-│       ├── test_pass2_step2c_replacement.py
-│       ├── test_pass2_step2c_selection.py
-│       ├── test_pass2_step2c.py
-│       ├── test_pass2_step2d_commit.py
-│       ├── test_pass2_step2d_orchestration.py
-│       ├── test_pass2_step2d_selection.py
-│       ├── test_pass2_step2d.py
-│       ├── test_pass2_step3.py
-│       ├── test_pass3.py
-│       ├── test_pass4.py
-│       └── test_pass5.py
+│       └── test_cp_solver.py
 ├── docker-compose.yml
 ├── frontend
 │   ├── Dockerfile
@@ -86,11 +73,11 @@
 │   │   ├── index.css
 │   │   ├── main.jsx
 │   │   └── services
+│   │       ├── groups.js
 │   │       ├── roster.js
 │   │       └── teamMembers.js
 │   └── vite.config.js
-├── old_scheduler.py
 ├── project_structure.txt
 └── README.md
 
-17 directories, 77 files
+17 directories, 64 files

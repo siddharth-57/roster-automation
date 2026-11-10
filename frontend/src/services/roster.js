@@ -3,9 +3,13 @@ import axios from "axios";
 const API_BASE_URL = "http://localhost:8000";
 
 
-export const getActiveTeamMembers = async () => {
+// Active members of one group (in roster order)
+export const getActiveTeamMembers = async (groupNumber) => {
   const response = await axios.get(
-    `${API_BASE_URL}/team-members`
+    `${API_BASE_URL}/team-members`,
+    {
+      params: { group_number: groupNumber },
+    }
   );
 
   return response.data;
