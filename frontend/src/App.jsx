@@ -10,7 +10,7 @@ function App() {
 
       <header className="app-header">
         <div className="app-header-inner">
-          <h1>Roster Management</h1>
+          <h1>Roster Management System</h1>
           <p>
             Create, Manage, Upload and Download Monthly Rosters
           </p>
