@@ -1,0 +1,99 @@
+ROSTER AUTOMATION - SETUP STEPS (WINDOWS)
+==========================================
+
+1. DOWNLOAD AND UNZIP THE PROJECT FROM GITHUB
+---------------------------------------------
+- Open the project's GitHub page and click the green "Code" button, then "Download ZIP".
+- Right-click the ZIP and choose "Extract All". Pick a location such as your Desktop.
+- Open the extracted "roster-automation-main" folder in PowerShell.
+
+
+2. INSTALL PYTHON
+-----------------
+- Check whether it's installed:
+    python --version
+  You had Python 3.13 earlier, so you can skip this if you see a version number.
+
+- If it's missing:
+    winget install --id Python.Python.3.13 -e --source winget
+
+  Open a new PowerShell window and run "python --version" to confirm.
+
+
+3. CREATE AND ACTIVATE THE VENV
+-------------------------------
+- The venv isn't included in GitHub downloads, so create it from the project folder:
+    python -m venv venv
+
+- Activate it:
+    .\venv\Scripts\Activate.ps1
+
+  The prompt should start with (venv). If you get a "scripts are disabled" error, run this once and try again:
+    Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+
+- Install the project's Python packages:
+    pip install -r backend\requirements.txt
+
+
+4. GIT (OPTIONAL)
+-----------------
+- Skipped. The project doesn't need it to run.
+
+
+5. INSTALL DOCKER DESKTOP
+-------------------------
+- Install it with:
+    winget install --id Docker.DockerDesktop -e --source winget
+
+- Docker Desktop needs WSL 2. If you see a "WSL not installed" error, run this in an administrator PowerShell:
+    wsl --install
+
+- Restart your computer. When Ubuntu opens, create a Linux username and password. The metrics prompt is optional.
+- You don't need a Docker account to run the project.
+
+
+6. CHECK DOCKER
+---------------
+- Once Docker Desktop shows "Engine running", run:
+    docker --version
+    docker run hello-world
+    docker compose version
+
+- If hello-world fails with a pipe error, the engine isn't ready yet. Wait a bit and try again.
+
+
+7. RUN THE PROJECT
+------------------
+- From the project folder:
+    docker compose up --build
+
+
+8. RUN THE DATABASE MIGRATIONS
+------------------------------
+- With the containers running, open a second PowerShell window in the project folder and run:
+    docker compose exec backend alembic upgrade head
+
+
+9. CHECK THE POSTGRES DATABASE
+------------------------------
+- Open the database shell:
+    docker compose exec postgres psql -U postgres -d roster_db
+
+- Inside the shell:
+    \dt                                  lists the tables
+    \d <tablename>                       shows a table's columns
+    SELECT * FROM <tablename> LIMIT 5;   shows a few rows
+    \q                                   exits
+
+- Or run a single query without opening the shell:
+    docker compose exec postgres psql -U postgres -d roster_db -c "\dt"
+
+
+DAILY USE
+---------
+- Open Docker Desktop and wait for "Engine running".
+- Activate the venv if you need it, then run:
+    docker compose up
+  Add --build only after code changes.
+- Stop with Ctrl+C, or run:
+    docker compose down
