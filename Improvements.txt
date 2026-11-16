@@ -7,7 +7,6 @@
 
 \f0\fs66 \cf0 improvements needed:\
 \
-handle an employee who is leaving with the black cells\
 C shifts should be balanced between employees if some employees get more C shifts last month they should get less C shifts this month\
 distribution of W on weekends should be fair and should also look into the last month roster\
 \

@@ -111,6 +111,11 @@ SHIFT_COLOURS = {
     "O": ("00B0F0", "000000"),
 }
 
+# Days with no shift (e.g. after an employee's last working day
+# in an uploaded roster) are shown as black cells, as in the
+# official roster.
+NO_SHIFT_COLOUR = "000000"
+
 THIN = Side(style="thin", color="000000")
 BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 CENTER = Alignment(horizontal="center", vertical="center")
@@ -278,7 +283,8 @@ def build_roster_workbook(
         for day in range(1, days_in_month + 1):
             col = FIRST_DAY_COL + day - 1
             shift = assignment_lookup.get((employee_id, day))
-            style_cell(ws.cell(row=row, column=col, value=shift), None, font(11))
+            cell_fill = NO_SHIFT_COLOUR if shift is None else None
+            style_cell(ws.cell(row=row, column=col, value=shift), cell_fill, font(11))
 
         # Per-member totals (live formulas)
         grid = f"{first_day_letter}{row}:{last_day_letter}{row}"
