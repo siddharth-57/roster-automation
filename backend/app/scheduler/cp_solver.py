@@ -10,6 +10,9 @@ from app.scheduler.c_shifts import (
     required_c_per_day,
 )
 from app.scheduler.config import (
+    LONG_LEAVE_L_DAYS,
+    LONG_LEAVE_MIN_DAYS,
+    LONG_LEAVE_W_DAYS,
     MAX_CONTINUOUS_WORKING_DAYS,
     MAX_G_PER_MEMBER,
     WEEKEND_MAX_PER_SHIFT,
@@ -202,6 +205,51 @@ class RosterSolver:
                 for d in days:
                     if d in self.days:
                         self.requested[m, d] = shift
+
+        self._apply_long_leave_pattern()
+
+    def _apply_long_leave_pattern(self) -> None:
+        """
+        A requested leave of LONG_LEAVE_MIN_DAYS or more days in a row
+        keeps the weekly offs: 5 days L, then 2 days W, repeated from the
+        first day of the leave. The requested L on those days becomes a
+        requested W, so the leave length stays the same and the member
+        uses up W during the leave instead of all of them afterwards.
+        """
+        cycle = LONG_LEAVE_L_DAYS + LONG_LEAVE_W_DAYS
+
+        # long_leave_notes[member] = [(first day, last day, [W days])]
+        self.long_leave_notes: dict[str, list[tuple[int, int, list[int]]]] = {}
+
+        for m in self.members:
+            leave_days = [
+                d for d in self.days
+                if self.requested.get((m, d)) == "L"
+            ]
+
+            # Split into runs of consecutive days
+            runs: list[list[int]] = []
+            for d in leave_days:
+                if runs and d == runs[-1][-1] + 1:
+                    runs[-1].append(d)
+                else:
+                    runs.append([d])
+
+            for run in runs:
+                if len(run) < LONG_LEAVE_MIN_DAYS:
+                    continue
+
+                w_days = [
+                    d for i, d in enumerate(run)
+                    if i % cycle >= LONG_LEAVE_L_DAYS
+                ]
+
+                for d in w_days:
+                    self.requested[m, d] = "W"
+
+                self.long_leave_notes.setdefault(m, []).append(
+                    (run[0], run[-1], w_days)
+                )
 
     # --------------------------------------------------
     # Variables
@@ -606,6 +654,15 @@ class RosterSolver:
         roster: dict[str, dict[int, str]],
     ) -> list[str]:
         warnings = []
+
+        for m, notes in self.long_leave_notes.items():
+            for first, last, w_days in notes:
+                days_text = ", ".join(str(d) for d in w_days)
+                warnings.append(
+                    f"{m}: leave from day {first} to {last} "
+                    f"({last - first + 1} days) includes weekly offs (W) "
+                    f"on days {days_text}."
+                )
 
         for m in self.members:
             for d in self.days:

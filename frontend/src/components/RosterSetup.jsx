@@ -1770,9 +1770,10 @@ function RosterSetup() {
                                   index
                                 }
                               >
-                                {
-                                  warning
-                                }
+                                {withMemberName(
+                                  warning,
+                                  members
+                                )}
                               </li>
                             )
                           )

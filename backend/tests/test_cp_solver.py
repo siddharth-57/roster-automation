@@ -596,3 +596,43 @@ def test_custom_c_per_day():
     ]
     print("\nC per member (2 weekday / 1 weekend):", c_counts)
     assert max(c_counts) - min(c_counts) <= 1
+
+
+
+# ------------------------------------------------------
+# Long leave keeps weekly offs: 5 L, 2 W, repeated
+# ------------------------------------------------------
+
+def test_long_leave_gets_weekly_offs():
+    # E001: 15 days of leave (3-17) -> 5 L, 2 W, 5 L, 2 W, 1 L
+    # E002: 6 days of leave (20-25) -> too short, stays all L
+    requirements = {
+        "E001": {"L": list(range(3, 18))},
+        "E002": {"L": list(range(20, 26))},
+    }
+
+    ctx = make_context(requirements=requirements)
+    result = solve(ctx, time_limit=20)
+    assert result.roster, result.warnings
+
+    e001 = "".join(result.roster["E001"][d] for d in range(3, 18))
+    print("\nE001 days 3-17:", e001)
+    assert e001 == "LLLLLWWLLLLLWWL"
+
+    e002 = "".join(result.roster["E002"][d] for d in range(20, 26))
+    print("E002 days 20-25:", e002)
+    assert e002 == "LLLLLL"
+
+    # Nothing the TL asked for was broken
+    assert result.relaxed_requirements == []
+
+    # The TL is told which leave days became W
+    assert any(
+        "E001: leave from day 3 to 17" in w and "8, 9, 15, 16" in w
+        for w in result.warnings
+    ), result.warnings
+
+    errors = validate_roster(
+        result.roster, ctx.year, ctx.month, ctx.public_holidays,
+    )
+    assert errors == [], errors

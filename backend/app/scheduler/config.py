@@ -19,6 +19,18 @@ MAX_C_PER_DAY = 3
 # the "spread C evenly" soft rule still pushes everyone to the fair share.
 C_SHARE_TOLERANCE = 1
 
+# --------------------------------------------------
+# Long leave
+# --------------------------------------------------
+
+# A requested leave of this many days in a row or more keeps the usual
+# weekly offs: 5 days L, then 2 days W, repeated from the first day of
+# the leave (e.g. 15 days -> 5 L, 2 W, 5 L, 2 W, 1 L). The leave length
+# stays the same; some of its days are simply W instead of L.
+LONG_LEAVE_MIN_DAYS = 7
+LONG_LEAVE_L_DAYS = 5
+LONG_LEAVE_W_DAYS = 2
+
 # Maximum number of G shifts a member can do in a month
 MAX_G_PER_MEMBER = 4
 
