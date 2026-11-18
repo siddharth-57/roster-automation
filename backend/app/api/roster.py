@@ -12,7 +12,10 @@ from sqlalchemy.orm import Session
 
 from app.schemas.roster import RosterGenerationRequest
 from app.services.roster_validation import validate_roster_request
-from app.services.previous_roster import get_previous_month_assignments
+from app.services.previous_roster import (
+    get_previous_month_assignments,
+    get_previous_month_c_counts,
+)
 from app.services.roster_persistence import save_roster
 from app.services.roster_excel import create_roster_excel
 from app.services.roster_excel import read_roster_excel
@@ -188,6 +191,15 @@ def generate_roster_endpoint(
         group_number=validated_request.group_number,
     )
 
+    # C shifts each member got last month, so the members who got
+    # the higher C count last month get the lower count this month.
+    previous_c_counts = get_previous_month_c_counts(
+        db=db,
+        year=validated_request.year,
+        month=validated_request.month,
+        group_number=validated_request.group_number,
+    )
+
     # --------------------------------------------------
     # 7. Build the RosterContext.
     # --------------------------------------------------
@@ -202,6 +214,7 @@ def generate_roster_endpoint(
         previous_assignments=previous_assignments,
         c_per_weekday=validated_request.c_per_weekday,
         c_per_weekend=validated_request.c_per_weekend,
+        previous_c_counts=previous_c_counts,
     )
 
     # --------------------------------------------------

@@ -1,7 +1,7 @@
 # The purpose of this layer is to collect everything the scheduler needs into one object with a specific format before scheduling begins.
 # The scheduler therefore doesn't need to repeatedly ask the database for information.
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 from app.scheduler.config import (
@@ -38,3 +38,7 @@ class RosterContext:
     # How many people the TL wants on C each weekday / weekend day
     c_per_weekday: int = DEFAULT_C_PER_WEEKDAY
     c_per_weekend: int = DEFAULT_C_PER_WEEKEND
+
+    # C shifts each member got last month (same group), used to rotate
+    # who gets the higher C count. Missing member = treated as lower.
+    previous_c_counts: dict[str, int] = field(default_factory=dict)

@@ -52,6 +52,7 @@ def build_roster_context(
     ],
     c_per_weekday: int = DEFAULT_C_PER_WEEKDAY,
     c_per_weekend: int = DEFAULT_C_PER_WEEKEND,
+    previous_c_counts: dict[str, int] | None = None,
 ) -> RosterContext:
 
     days_in_month = calendar.monthrange(
@@ -76,4 +77,5 @@ def build_roster_context(
         required_w_days=required_w_days,
         c_per_weekday=c_per_weekday,
         c_per_weekend=c_per_weekend,
+        previous_c_counts=previous_c_counts or {},
     )

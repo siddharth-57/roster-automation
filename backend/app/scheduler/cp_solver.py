@@ -35,6 +35,7 @@ W_REQUIREMENT = 10_000      # per broken requirement day
 W_UNREQUESTED_L = 1_000     # per L the member didn't ask for
 W_C_SPREAD = 1_000          # per unit of (most C - fewest C); outranks C blocks, so balance comes first
 W_C_BLOCK = 150             # per separate run of C shifts (ideal: 1 run per member)
+W_C_ROTATION = 10           # per C, per C a member had above the lowest count last month
 W_MEMBER_AB_BALANCE = 80    # per shift a member's |A - B| goes above the allowed gap
 W_W_SPACING = 60            # per W missing below 2 / above 3 in any 7 days in a row
 W_WEEKEND_EXTRA = 50        # per person above 1 in A/B (or any G) on weekends
@@ -405,6 +406,33 @@ class RosterSolver:
 
         self.c_block_penalties.append(W_C_SPREAD * (max_c - min_c))
 
+    # Rotate the higher C count: members who got more C than others last
+    # month should get the lower count this month, and vice versa.
+    # Each C costs W_C_ROTATION x (member's C last month - lowest C last
+    # month), so the extra C shifts go to those who had fewer last month.
+    # A member with no C last month (or new to the group) counts as the
+    # lowest. "Spread C evenly" still outranks this, so it only decides
+    # WHO gets the extra C, never how many there are.
+    def _add_c_rotation_penalty(self) -> None:
+        previous = self.context.previous_c_counts
+
+        if not previous:
+            return
+
+        last_month = {
+            m: previous.get(m, 0)
+            for m in self.members
+        }
+        lowest = min(last_month.values())
+
+        for m in self.members:
+            extra = last_month[m] - lowest
+
+            if extra > 0:
+                self.c_block_penalties.append(
+                    W_C_ROTATION * extra * self._count(m, "C")
+                )
+
     # Keep each member's C shifts together: penalise every day a new
     # run of C starts (C today, not C yesterday). Every member has at
     # least one run, so the ideal is exactly one run each.
@@ -604,6 +632,7 @@ class RosterSolver:
         self._add_unrequested_l_penalties()
         self._add_c_spread_penalty()
         self._add_c_block_penalty()
+        self._add_c_rotation_penalty()
         self._add_member_ab_balance_penalty()
         self._add_w_spacing_penalty()
         self._add_weekend_headcount_penalty()

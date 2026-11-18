@@ -5,11 +5,34 @@
 
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.roster import Roster
 from app.models.roster_assignment import RosterAssignment
+
+
+def get_previous_month_roster(
+    db: Session,
+    year: int,
+    month: int,
+    group_number: str,
+) -> Roster | None:
+
+    if month == 1:
+        previous_year = year - 1
+        previous_month = 12
+    else:
+        previous_year = year
+        previous_month = month - 1
+
+    return db.scalar(
+        select(Roster).where(
+            Roster.year == previous_year,
+            Roster.month == previous_month,
+            Roster.group_number == group_number,
+        )
+    )
 
 
 def get_previous_month_assignments(
@@ -19,19 +42,11 @@ def get_previous_month_assignments(
     group_number: str,
 ) -> dict[str, dict[date, str]]:
 
-    if month == 1:
-        previous_year = year - 1
-        previous_month = 12
-    else:
-        previous_year = year
-        previous_month = month - 1
-
-    roster = db.scalar(
-        select(Roster).where(
-            Roster.year == previous_year,
-            Roster.month == previous_month,
-            Roster.group_number == group_number,
-        )
+    roster = get_previous_month_roster(
+        db,
+        year,
+        month,
+        group_number,
     )
 
     if not roster:
@@ -71,3 +86,42 @@ def get_previous_month_assignments(
         )[assignment.date] = assignment.shift
 
     return result
+
+
+# How many C shifts each member got in the previous month (same group),
+# e.g. {"E001": 7, "E002": 6}. Members with no C last month are left
+# out, which the scheduler treats the same as having the lower number.
+# Empty if there is no previous roster.
+def get_previous_month_c_counts(
+    db: Session,
+    year: int,
+    month: int,
+    group_number: str,
+) -> dict[str, int]:
+
+    roster = get_previous_month_roster(
+        db,
+        year,
+        month,
+        group_number,
+    )
+
+    if not roster:
+        return {}
+
+    rows = db.execute(
+        select(
+            RosterAssignment.employee_id,
+            func.count(),
+        )
+        .where(
+            RosterAssignment.roster_id == roster.roster_id,
+            RosterAssignment.shift == "C",
+        )
+        .group_by(RosterAssignment.employee_id)
+    ).all()
+
+    return {
+        employee_id: count
+        for employee_id, count in rows
+    }

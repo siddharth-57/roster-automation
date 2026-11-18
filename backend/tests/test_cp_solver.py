@@ -39,6 +39,7 @@ def make_context(
     previous_assignments=None,
     c_per_weekday=1,
     c_per_weekend=1,
+    previous_c_counts=None,
 ):
     members = members or DEFAULT_MEMBERS
     requirements = requirements or {}
@@ -61,6 +62,7 @@ def make_context(
         previous_assignments=previous_assignments or {},
         c_per_weekday=c_per_weekday,
         c_per_weekend=c_per_weekend,
+        previous_c_counts=previous_c_counts,
     )
 
 
@@ -636,3 +638,30 @@ def test_long_leave_gets_weekly_offs():
         result.roster, ctx.year, ctx.month, ctx.public_holidays,
     )
     assert errors == [], errors
+
+
+# ------------------------------------------------------
+# Rotate the higher C count month to month
+# ------------------------------------------------------
+
+def test_c_rotation_from_last_month():
+    # December: 31 C over 8 members -> seven get 4, one gets 3.
+    # Last month E005 had the higher count (4) and the rest 3,
+    # and E008 is new (no C last month), so E005 should get the 3.
+    previous_c_counts = {
+        "E001": 3, "E002": 3, "E003": 3, "E004": 3,
+        "E005": 4, "E006": 3, "E007": 3,
+    }
+
+    ctx = make_context(previous_c_counts=previous_c_counts)
+    result = solve(ctx, time_limit=20)
+    assert result.roster, result.warnings
+
+    c_counts = {
+        m: sum(shift == "C" for shift in result.roster[m].values())
+        for m in ctx.members
+    }
+    print("\nC this month:", c_counts)
+
+    assert c_counts["E005"] == 3
+    assert all(c_counts[m] == 4 for m in ctx.members if m != "E005")
