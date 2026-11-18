@@ -77,4 +77,27 @@ def validate_roster_request(
 
                 dates_by_shift[day] = shift
 
+    # --------------------------------------------------
+    # Enough members for the chosen C numbers?
+    # Every day needs the C people plus at least 1 in A
+    # and 1 in B, so fewer members can never work.
+    # --------------------------------------------------
+
+    member_count = len(request.requirements)
+    largest_c = max(
+        request.c_per_weekday,
+        request.c_per_weekend,
+    )
+    needed = largest_c + 2
+
+    if member_count < needed:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"{largest_c} people on C needs at least "
+                f"{needed} members (plus 1 in A and 1 in B "
+                f"every day). This group has {member_count}."
+            ),
+        )
+
     return request

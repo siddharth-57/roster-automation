@@ -5,8 +5,6 @@
 from collections import Counter
 
 from app.scheduler.config import (
-    MAX_C_PER_DAY,
-    MAX_C_PER_MEMBER,
     MAX_CONTINUOUS_WORKING_DAYS,
 )
 
@@ -27,44 +25,6 @@ def is_day_available(
 ) -> bool:
     return day not in roster.get(employee_id, {})
 
-
-# CHECKS MAXIMUM C SHIFT PER MEMBER AND IF MORE C SHIFTS CAN BE ASSIGNED BASED ON THE MAX LIMIT CONFIGURED
-def count_c_shifts(
-    roster: dict,
-    employee_id: str,
-) -> int:
-    return sum(
-        shift == "C"
-        for shift in roster.get(employee_id, {}).values()
-    )
-def can_assign_c(
-    roster: dict,
-    employee_id: str,
-) -> bool:
-    return (
-        count_c_shifts(roster, employee_id)
-        < MAX_C_PER_MEMBER
-    )
-
-# CHECKS Constraint: maximum C shift members per day
-def count_c_on_day(
-    roster: dict,
-    day: int,
-) -> int:
-    return sum(
-        assignments.get(day) == "C"
-        for assignments in roster.values()
-    )
-
-# so once one person has C on that day, another person cannot receive C.
-def can_assign_c_on_day(
-    roster: dict,
-    day: int,
-) -> bool:
-    return (
-        count_c_on_day(roster, day)
-        < MAX_C_PER_DAY
-    )
 
 # Checks Constraint: C shift continuation
 # C → C/W/H/L       allowed
@@ -211,20 +171,6 @@ def can_assign_shift(
         day,
     ):
         return False
-
-    if shift == "C":
-
-        if not can_assign_c(
-            roster,
-            employee_id,
-        ):
-            return False
-
-        if not can_assign_c_on_day(
-            roster,
-            day,
-        ):
-            return False
 
     if not can_assign_after_previous_day(
         roster,

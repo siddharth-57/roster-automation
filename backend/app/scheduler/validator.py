@@ -1,8 +1,8 @@
 # The functions in this file validate if the entire roster is valid or not and follows the constraints or not
 # This file checks the following core constraints:
 # 1. A/B/C shifts everyday have atleast one member
-# 2. each member every month has MIN_C_PER_MEMBER <= C shifts <= MAX_C_PER_MEMBER
-# 3. max MAX_C_PER_DAY members in C shift per day
+# 2. each member's C count is within the range worked out from the month (see c_shifts.py)
+# 3. exactly the chosen number of members in C each day (weekday / weekend)
 # 4. the day after a C shift must be C/W/H/L (including previous month's last day)
 # 5. max MAX_CONTINUOUS_WORKING_DAYS continuous working days (including previous month's streak)
 # 6. all members must receive the required W and H every month
@@ -12,10 +12,13 @@
 import calendar
 from datetime import date
 
+from app.scheduler.c_shifts import (
+    c_limits_per_member,
+    required_c_per_day,
+)
 from app.scheduler.config import (
-    MAX_C_PER_MEMBER,
-    MAX_C_PER_DAY,
-    MIN_C_PER_MEMBER,
+    DEFAULT_C_PER_WEEKDAY,
+    DEFAULT_C_PER_WEEKEND,
     MAX_CONTINUOUS_WORKING_DAYS,
     MAX_G_PER_MEMBER,
     WEEKEND_MAX_PER_SHIFT,
@@ -95,9 +98,27 @@ def validate_daily_staffing(
 
 def validate_c_shift_limits(
     roster: dict,
+    year: int,
+    month: int,
+    c_per_weekday: int = DEFAULT_C_PER_WEEKDAY,
+    c_per_weekend: int = DEFAULT_C_PER_WEEKEND,
 ) -> list[str]:
 
     errors = []
+
+    total_c = sum(
+        required_c_per_day(
+            year,
+            month,
+            c_per_weekday,
+            c_per_weekend,
+        ).values()
+    )
+
+    min_c, max_c = c_limits_per_member(
+        total_c,
+        len(roster),
+    )
 
     for employee_id, assignments in roster.items():
 
@@ -106,16 +127,16 @@ def validate_c_shift_limits(
             "C",
         )
 
-        if c_count < MIN_C_PER_MEMBER:
+        if c_count < min_c:
             errors.append(
                 f"{employee_id}: only {c_count} C shifts "
-                f"(minimum is {MIN_C_PER_MEMBER})."
+                f"(minimum is {min_c})."
             )
 
-        if c_count > MAX_C_PER_MEMBER:
+        if c_count > max_c:
             errors.append(
                 f"{employee_id}: {c_count} C shifts "
-                f"(maximum is {MAX_C_PER_MEMBER})."
+                f"(maximum is {max_c})."
             )
 
     return errors
@@ -123,12 +144,22 @@ def validate_c_shift_limits(
 
 def validate_c_shift_daily_limit(
     roster: dict,
-    days_in_month: int,
+    year: int,
+    month: int,
+    c_per_weekday: int = DEFAULT_C_PER_WEEKDAY,
+    c_per_weekend: int = DEFAULT_C_PER_WEEKEND,
 ) -> list[str]:
 
     errors = []
 
-    for day in range(1, days_in_month + 1):
+    required = required_c_per_day(
+        year,
+        month,
+        c_per_weekday,
+        c_per_weekend,
+    )
+
+    for day, required_count in required.items():
 
         c_members = [
             employee_id
@@ -137,11 +168,11 @@ def validate_c_shift_daily_limit(
             if assignments.get(day) == "C"
         ]
 
-        if len(c_members) > MAX_C_PER_DAY:
+        if len(c_members) != required_count:
             errors.append(
                 f"Day {day}: {len(c_members)} members "
                 f"assigned to C shift "
-                f"(maximum is {MAX_C_PER_DAY})."
+                f"(required: {required_count})."
             )
 
     return errors
@@ -377,6 +408,8 @@ def validate_roster(
     month: int,
     public_holidays: int,
     previous_assignments: dict | None = None,
+    c_per_weekday: int = DEFAULT_C_PER_WEEKDAY,
+    c_per_weekend: int = DEFAULT_C_PER_WEEKEND,
 ) -> list[str]:
 
     days_in_month = calendar.monthrange(
@@ -401,14 +434,21 @@ def validate_roster(
 
     errors.extend(
         validate_c_shift_limits(
-            roster
+            roster,
+            year,
+            month,
+            c_per_weekday,
+            c_per_weekend,
         )
     )
 
     errors.extend(
         validate_c_shift_daily_limit(
             roster,
-            days_in_month,
+            year,
+            month,
+            c_per_weekday,
+            c_per_weekend,
         )
     )
 

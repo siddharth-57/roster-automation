@@ -3,6 +3,13 @@
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.scheduler.config import (
+    DEFAULT_C_PER_WEEKDAY,
+    DEFAULT_C_PER_WEEKEND,
+    MAX_C_PER_DAY,
+    MIN_C_PER_DAY,
+)
+
 
 class MemberRequirements(BaseModel):
     employee_id: str
@@ -31,6 +38,19 @@ class RosterGenerationRequest(BaseModel):
 
     public_holidays: int = Field(
         ge=0,
+    )
+
+    # How many people the TL wants on C each day (1 to 3)
+    c_per_weekday: int = Field(
+        default=DEFAULT_C_PER_WEEKDAY,
+        ge=MIN_C_PER_DAY,
+        le=MAX_C_PER_DAY,
+    )
+
+    c_per_weekend: int = Field(
+        default=DEFAULT_C_PER_WEEKEND,
+        ge=MIN_C_PER_DAY,
+        le=MAX_C_PER_DAY,
     )
 
     requirements: list[MemberRequirements]

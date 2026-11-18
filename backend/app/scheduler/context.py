@@ -4,6 +4,11 @@
 from dataclasses import dataclass
 from datetime import date
 
+from app.scheduler.config import (
+    DEFAULT_C_PER_WEEKDAY,
+    DEFAULT_C_PER_WEEKEND,
+)
+
 
 @dataclass
 class MemberRequirement:
@@ -29,3 +34,7 @@ class RosterContext:
 
     days_in_month: int
     required_w_days: int
+
+    # How many people the TL wants on C each weekday / weekend day
+    c_per_weekday: int = DEFAULT_C_PER_WEEKDAY
+    c_per_weekend: int = DEFAULT_C_PER_WEEKEND

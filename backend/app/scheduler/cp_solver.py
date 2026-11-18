@@ -5,12 +5,13 @@ from datetime import date
 
 from ortools.sat.python import cp_model
 
+from app.scheduler.c_shifts import (
+    c_limits_per_member,
+    required_c_per_day,
+)
 from app.scheduler.config import (
-    MAX_C_PER_DAY,
-    MAX_C_PER_MEMBER,
     MAX_CONTINUOUS_WORKING_DAYS,
     MAX_G_PER_MEMBER,
-    MIN_C_PER_MEMBER,
     WEEKEND_MAX_PER_SHIFT,
 )
 from app.scheduler.constraints import WORKING_SHIFTS
@@ -29,7 +30,7 @@ SHIFTS = ["A", "B", "C", "G", "W", "H", "L"]
 # --------------------------------------------------
 W_REQUIREMENT = 10_000      # per broken requirement day
 W_UNREQUESTED_L = 1_000     # per L the member didn't ask for
-W_C_SPREAD = 100            # per unit of (most C - fewest C)
+W_C_SPREAD = 1_000          # per unit of (most C - fewest C); outranks C blocks, so balance comes first
 W_C_BLOCK = 150             # per separate run of C shifts (ideal: 1 run per member)
 W_MEMBER_AB_BALANCE = 80    # per shift a member's |A - B| goes above the allowed gap
 W_W_SPACING = 60            # per W missing below 2 / above 3 in any 7 days in a row
@@ -86,6 +87,20 @@ class RosterSolver:
         self.rng = random.Random(random_seed)
 
         self.model = cp_model.CpModel()
+
+        # C shifts: exactly this many people on C each day (TL's choice
+        # for weekdays / weekends), and each member's C count stays
+        # within a range worked out from the month's total.
+        self.c_required = required_c_per_day(
+            context.year,
+            context.month,
+            context.c_per_weekday,
+            context.c_per_weekend,
+        )
+        self.min_c, self.max_c = c_limits_per_member(
+            sum(self.c_required.values()),
+            len(self.members),
+        )
 
         # x[(member, day, shift)] = 1 if the member works that shift that day
         self.x: dict[tuple[str, int, str], cp_model.IntVar] = {}
@@ -212,16 +227,18 @@ class RosterSolver:
                     self.x[m, d, s] for s in SHIFTS
                 )
 
-    # Hard rule 1: at least 1 member in A, B and C every day
+    # Hard rule 1: at least 1 member in A and B every day
+    # (C is covered by hard rule 6, which sets its exact count)
     def _add_daily_coverage(self) -> None:
         for d in self.days:
-            for s in ("A", "B", "C"):
+            for s in ("A", "B"):
                 self.model.add(self._day_count(d, s) >= 1)
 
-    # Hard rule 6: at most MAX_C_PER_DAY members in C per day
-    def _add_max_c_per_day(self) -> None:
+    # Hard rule 6: exactly the TL's chosen number of members in C each
+    # day (one number for weekdays, one for weekends)
+    def _add_c_per_day(self) -> None:
         for d in self.days:
-            self.model.add(self._day_count(d, "C") <= MAX_C_PER_DAY)
+            self.model.add(self._day_count(d, "C") == self.c_required[d])
 
     # G limit: at most MAX_G_PER_MEMBER G shifts per member per month.
     def _add_max_g_per_member(self) -> None:
@@ -240,12 +257,13 @@ class RosterSolver:
                     self._day_count(d, s) <= WEEKEND_MAX_PER_SHIFT
                 )
 
-    # Hard rule 5: MIN_C_PER_MEMBER <= C count <= MAX_C_PER_MEMBER
+    # Hard rule 5: each member's C count within the range worked out
+    # from the month (fair share +/- C_SHARE_TOLERANCE, see c_shifts.py)
     def _add_c_count_per_member(self) -> None:
         for m in self.members:
             c_count = self._count(m, "C")
-            self.model.add(c_count >= MIN_C_PER_MEMBER)
-            self.model.add(c_count <= MAX_C_PER_MEMBER)
+            self.model.add(c_count >= self.min_c)
+            self.model.add(c_count <= self.max_c)
 
     # Hard rule 3: every member gets exactly the required W count
     def _add_w_count(self) -> None:
@@ -524,7 +542,7 @@ class RosterSolver:
         # Hard rules
         self._add_one_shift_per_day()
         self._add_daily_coverage()
-        self._add_max_c_per_day()
+        self._add_c_per_day()
         self._add_c_count_per_member()
         self._add_w_count()
         self._add_h_count()
@@ -646,9 +664,13 @@ class RosterSolver:
             limit = remaining if share is None else self.time_limit_seconds * share
 
             if best_solver is not None:
-                # Start from the previous phase's roster
+                # Start from the previous phase's full solution. Every
+                # variable is hinted (not just the shifts), so the solver
+                # starts from a complete valid answer and never comes back
+                # empty-handed, even on a slow machine.
                 self.model.clear_hints()
-                for var in self.x.values():
+                for index in range(len(self.model.proto.variables)):
+                    var = self.model.get_int_var_from_proto_index(index)
                     self.model.add_hint(var, best_solver.value(var))
 
             self.model.minimize(objective)
@@ -662,8 +684,12 @@ class RosterSolver:
                         roster={},
                         warnings=[
                             "No valid roster found: the hard rules can't all "
-                            "be met for this month and team (solver status: "
-                            f"{solver.status_name(status)})."
+                            "be met for this month and team "
+                            f"({len(self.members)} members, "
+                            f"{self.context.c_per_weekday} on C on weekdays, "
+                            f"{self.context.c_per_weekend} on C on weekends). "
+                            "Try fewer people on C or add members "
+                            f"(solver status: {solver.status_name(status)})."
                         ],
                         status=solver.status_name(status),
                     )

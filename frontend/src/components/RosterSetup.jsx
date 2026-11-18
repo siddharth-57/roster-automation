@@ -217,6 +217,13 @@ function RosterSetup() {
   const [publicHolidays, setPublicHolidays] =
     useState(0);
 
+  // How many people on C each day (1 to 3)
+  const [cPerWeekday, setCPerWeekday] =
+    useState(1);
+
+  const [cPerWeekend, setCPerWeekend] =
+    useState(1);
+
   const [requirements, setRequirements] =
     useState({});
 
@@ -584,6 +591,10 @@ function RosterSetup() {
         groupNumber.trim(),
       public_holidays:
         publicHolidays,
+      c_per_weekday:
+        cPerWeekday,
+      c_per_weekend:
+        cPerWeekend,
       requirements:
         formattedRequirements,
     };
@@ -1366,6 +1377,62 @@ function RosterSetup() {
                   )
                 }
               />
+            </label>
+          </div>
+
+
+          <div className="form-field">
+            <label>
+              People on C (weekdays):
+
+              <select
+                value={cPerWeekday}
+                disabled={generating}
+                onChange={(event) =>
+                  setCPerWeekday(
+                    Number(
+                      event.target.value
+                    )
+                  )
+                }
+              >
+                {[1, 2, 3].map((count) => (
+                  <option
+                    key={count}
+                    value={count}
+                  >
+                    {count}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+
+          <div className="form-field">
+            <label>
+              People on C (weekends):
+
+              <select
+                value={cPerWeekend}
+                disabled={generating}
+                onChange={(event) =>
+                  setCPerWeekend(
+                    Number(
+                      event.target.value
+                    )
+                  )
+                }
+              >
+                {[1, 2, 3].map((count) => (
+                  <option
+                    key={count}
+                    value={count}
+                  >
+                    {count}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
 

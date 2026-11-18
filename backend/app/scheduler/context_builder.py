@@ -1,6 +1,10 @@
 import calendar
 from datetime import date
 
+from app.scheduler.config import (
+    DEFAULT_C_PER_WEEKDAY,
+    DEFAULT_C_PER_WEEKEND,
+)
 from app.scheduler.context import (
     MemberRequirement,
     RosterContext,
@@ -46,6 +50,8 @@ def build_roster_context(
         str,
         dict[date, str],
     ],
+    c_per_weekday: int = DEFAULT_C_PER_WEEKDAY,
+    c_per_weekend: int = DEFAULT_C_PER_WEEKEND,
 ) -> RosterContext:
 
     days_in_month = calendar.monthrange(
@@ -68,4 +74,6 @@ def build_roster_context(
         previous_assignments=previous_assignments,
         days_in_month=days_in_month,
         required_w_days=required_w_days,
+        c_per_weekday=c_per_weekday,
+        c_per_weekend=c_per_weekend,
     )

@@ -200,6 +200,8 @@ def generate_roster_endpoint(
         members=members,
         requirements=requirements,
         previous_assignments=previous_assignments,
+        c_per_weekday=validated_request.c_per_weekday,
+        c_per_weekend=validated_request.c_per_weekend,
     )
 
     # --------------------------------------------------
@@ -237,6 +239,8 @@ def generate_roster_endpoint(
         validated_request.month,
         validated_request.public_holidays,
         previous_assignments,
+        validated_request.c_per_weekday,
+        validated_request.c_per_weekend,
     )
 
     if validation_errors:
