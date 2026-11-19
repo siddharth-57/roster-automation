@@ -1,9 +1,10 @@
-\f0\fs66 \cf0 improvements needed:\
-\
-last commit: distribution of W on weekends should be fair and should also look into the last month roster\
+improvements needed:
+Old Code: distribution of W on weekends should be fair and should also look into the last month roster\
 
-2 W after C shift
-the weekend balance does cost some W pairs. Before, Saturday + Sunday was the easy way to give people two days off together. Now that weekends are shared, more W days land on weekdays, where they compete with C blocks, the 5-days-in-a-row limit and requests.
+2 W after C shift: the weekend balance does cost some W pairs. Before, Saturday + Sunday was the easy way to give people two days off together. Now that weekends are shared, more W days land on weekdays, where they compete with C blocks, the 5-days-in-a-row limit and requests.
+New Code: I think a soft rule: 2 W after c
 
-i think a soft rule: 2 W after c
-can be placed above 1 person in shift on weekend and maybe over the W balancing rule as well
+
+
+Soft: “No more than 2 W in a row unless requested,” with a penalty for each extra W. It ranks below requests, so a requested W W W is still given.
+Soft: more than 3 W should not be assigned in a row in that case 3 L should be assigned and then after which W can be assigned again 
