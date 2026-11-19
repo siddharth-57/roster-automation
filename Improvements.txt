@@ -1,3 +1,9 @@
 \f0\fs66 \cf0 improvements needed:\
 \
-distribution of W on weekends should be fair and should also look into the last month roster\
+last commit: distribution of W on weekends should be fair and should also look into the last month roster\
+
+2 W after C shift
+the weekend balance does cost some W pairs. Before, Saturday + Sunday was the easy way to give people two days off together. Now that weekends are shared, more W days land on weekdays, where they compete with C blocks, the 5-days-in-a-row limit and requests.
+
+i think a soft rule: 2 W after c
+can be placed above 1 person in shift on weekend and maybe over the W balancing rule as well

@@ -15,6 +15,7 @@ from app.services.roster_validation import validate_roster_request
 from app.services.previous_roster import (
     get_previous_month_assignments,
     get_previous_month_c_counts,
+    get_previous_month_weekend_work,
 )
 from app.services.roster_persistence import save_roster
 from app.services.roster_excel import create_roster_excel
@@ -200,6 +201,15 @@ def generate_roster_endpoint(
         group_number=validated_request.group_number,
     )
 
+    # Weekend days each member worked last month, so weekend work
+    # rotates: more weekends last month -> fewer this month.
+    previous_weekend_work = get_previous_month_weekend_work(
+        db=db,
+        year=validated_request.year,
+        month=validated_request.month,
+        group_number=validated_request.group_number,
+    )
+
     # --------------------------------------------------
     # 7. Build the RosterContext.
     # --------------------------------------------------
@@ -215,6 +225,7 @@ def generate_roster_endpoint(
         c_per_weekday=validated_request.c_per_weekday,
         c_per_weekend=validated_request.c_per_weekend,
         previous_c_counts=previous_c_counts,
+        previous_weekend_work=previous_weekend_work,
     )
 
     # --------------------------------------------------

@@ -42,3 +42,7 @@ class RosterContext:
     # C shifts each member got last month (same group), used to rotate
     # who gets the higher C count. Missing member = treated as lower.
     previous_c_counts: dict[str, int] = field(default_factory=dict)
+
+    # Weekend days (Sat/Sun) each member worked last month (same group),
+    # used to rotate weekend work. Missing member = treated as lowest.
+    previous_weekend_work: dict[str, int] = field(default_factory=dict)

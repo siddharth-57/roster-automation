@@ -125,3 +125,42 @@ def get_previous_month_c_counts(
         employee_id: count
         for employee_id, count in rows
     }
+
+
+# How many Saturdays/Sundays each member worked (A, B, C or G) in the
+# previous month (same group), e.g. {"E001": 4, "E002": 2}. Members who
+# didn't work any weekend day are left out (treated as the lowest).
+# Empty if there is no previous roster.
+def get_previous_month_weekend_work(
+    db: Session,
+    year: int,
+    month: int,
+    group_number: str,
+) -> dict[str, int]:
+
+    roster = get_previous_month_roster(
+        db,
+        year,
+        month,
+        group_number,
+    )
+
+    if not roster:
+        return {}
+
+    assignments = db.scalars(
+        select(RosterAssignment).where(
+            RosterAssignment.roster_id == roster.roster_id,
+            RosterAssignment.shift.in_(["A", "B", "C", "G"]),
+        )
+    ).all()
+
+    result: dict[str, int] = {}
+
+    for assignment in assignments:
+        if assignment.date.weekday() >= 5:
+            result[assignment.employee_id] = (
+                result.get(assignment.employee_id, 0) + 1
+            )
+
+    return result

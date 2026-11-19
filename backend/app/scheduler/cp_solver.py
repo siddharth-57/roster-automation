@@ -36,6 +36,8 @@ W_UNREQUESTED_L = 1_000     # per L the member didn't ask for
 W_C_SPREAD = 1_000          # per unit of (most C - fewest C); outranks C blocks, so balance comes first
 W_C_BLOCK = 150             # per separate run of C shifts (ideal: 1 run per member)
 W_C_ROTATION = 10           # per C, per C a member had above the lowest count last month
+W_WEEKEND_SPREAD = 300      # per weekend day a member works above/below the fair share; top fairness rule
+W_WEEKEND_ROTATION = 90     # per weekend day worked, per weekend day (max 3) worked above the lowest last month; 3 x 90 = 270 stays below W_WEEKEND_SPREAD but above the other fairness rules
 W_MEMBER_AB_BALANCE = 80    # per shift a member's |A - B| goes above the allowed gap
 W_W_SPACING = 60            # per W missing below 2 / above 3 in any 7 days in a row
 W_WEEKEND_EXTRA = 50        # per person above 1 in A/B (or any G) on weekends
@@ -452,6 +454,70 @@ class RosterSolver:
 
                 self.c_block_penalties.append(W_C_BLOCK * start)
 
+    # Number of Saturdays/Sundays a member works (A, B, C or G)
+    def _weekend_work(self, member: str):
+        return sum(
+            self._is_working(member, d)
+            for d in self.days
+            if self._is_weekend(d)
+        )
+
+    # Share weekend work evenly. Each weekend day needs at least
+    # 1 in A + 1 in B + the chosen number on C, so the fair share per
+    # member is (weekend days x that number) / members, e.g.
+    # 8 x 3 / 8 = 3. Working more than the fair share (rounded up) or
+    # fewer than it (rounded down) costs a penalty per day.
+    # Without this, the "W in pairs" rules make Sat+Sun a natural W pair,
+    # so some members get every weekend off and others work every one.
+    # Requests still come first (phase 1).
+    def _add_weekend_spread_penalty(self) -> None:
+        weekend_days = sum(1 for d in self.days if self._is_weekend(d))
+        needed_per_day = 2 + self.context.c_per_weekend
+        total = weekend_days * needed_per_day
+        members = len(self.members)
+
+        fair_low = total // members
+        fair_high = -(-total // members)  # rounded up
+
+        for m in self.members:
+            work = self._weekend_work(m)
+
+            over = self.model.new_int_var(0, weekend_days, f"weekend_over_{m}")
+            under = self.model.new_int_var(0, weekend_days, f"weekend_under_{m}")
+            self.model.add(over >= work - fair_high)
+            self.model.add(under >= fair_low - work)
+
+            self.fairness_penalties.append(W_WEEKEND_SPREAD * (over + under))
+
+    # Rotate weekend work: members who worked more weekend days than
+    # others last month should work fewer this month. Same idea as C
+    # rotation: each weekend day worked costs W_WEEKEND_ROTATION x
+    # (member's weekend days worked last month - lowest last month),
+    # with that difference capped at 3 so the cost per day stays below
+    # W_WEEKEND_SPREAD (rotation must never undo the even share).
+    # New members / no weekend work last month count as the lowest.
+    # The spread rule outranks this, so it only decides who works the
+    # extra weekend day when the work can't be split exactly evenly.
+    def _add_weekend_rotation_penalty(self) -> None:
+        previous = self.context.previous_weekend_work
+
+        if not previous:
+            return
+
+        last_month = {
+            m: previous.get(m, 0)
+            for m in self.members
+        }
+        lowest = min(last_month.values())
+
+        for m in self.members:
+            extra = min(last_month[m] - lowest, 3)
+
+            if extra > 0:
+                self.fairness_penalties.append(
+                    W_WEEKEND_ROTATION * extra * self._weekend_work(m)
+                )
+
     # Each member's A and B counts should be balanced over the month.
     # A gap of up to MEMBER_AB_ALLOWED_GAP is free; every shift beyond
     # that costs a penalty.
@@ -633,6 +699,8 @@ class RosterSolver:
         self._add_c_spread_penalty()
         self._add_c_block_penalty()
         self._add_c_rotation_penalty()
+        self._add_weekend_spread_penalty()
+        self._add_weekend_rotation_penalty()
         self._add_member_ab_balance_penalty()
         self._add_w_spacing_penalty()
         self._add_weekend_headcount_penalty()

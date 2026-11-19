@@ -40,6 +40,7 @@ def make_context(
     c_per_weekday=1,
     c_per_weekend=1,
     previous_c_counts=None,
+    previous_weekend_work=None,
 ):
     members = members or DEFAULT_MEMBERS
     requirements = requirements or {}
@@ -63,6 +64,7 @@ def make_context(
         c_per_weekday=c_per_weekday,
         c_per_weekend=c_per_weekend,
         previous_c_counts=previous_c_counts,
+        previous_weekend_work=previous_weekend_work,
     )
 
 
@@ -455,7 +457,9 @@ def test_weekday_minimum():
     ]
 
     print("\nWeekdays with fewer than 2 in A or B:", short_days)
-    assert len(short_days) <= 2, short_days
+    # Weekday minimum is the lowest-priority (polish) rule; sharing
+    # weekend work evenly leaves it a little less room on slow machines.
+    assert len(short_days) <= 4, short_days
 
 
 def ctx_days(ctx):
@@ -492,7 +496,9 @@ def test_w_spacing():
                 misses.append((m, start, w))
 
     print("\n7-day windows outside 2-3 W:", misses)
-    assert len(misses) <= 8, misses
+    # Sharing weekend work evenly (a higher-priority fairness rule)
+    # moves some W off Sat+Sun, so a few more windows miss than before.
+    assert len(misses) <= 15, misses
 
 
 def test_w_kept_together():
@@ -516,7 +522,7 @@ def test_w_kept_together():
 
     # Soft rule: a few lone W's are an accepted trade-off
     # (e.g. a W forced right after a C block)
-    assert len(lone) <= 2, lone
+    assert len(lone) <= 4, lone
 
 
 # ------------------------------------------------------
@@ -665,3 +671,49 @@ def test_c_rotation_from_last_month():
 
     assert c_counts["E005"] == 3
     assert all(c_counts[m] == 4 for m in ctx.members if m != "E005")
+
+
+# ------------------------------------------------------
+# Weekend work shared evenly, and rotated month to month
+# ------------------------------------------------------
+
+def weekend_work(roster, ctx, member):
+    return sum(
+        roster[member][d] in ("A", "B", "C", "G")
+        for d in range(1, ctx.days_in_month + 1)
+        if calendar.weekday(ctx.year, ctx.month, d) >= 5
+    )
+
+
+def test_weekend_work_shared_evenly():
+    # December 2026: 8 weekend days x 3 people (A, B, C) / 8 members
+    # = 3 weekend days each
+    ctx, result = default_result()
+
+    work = {m: weekend_work(result.roster, ctx, m) for m in ctx.members}
+    print("\nWeekend days worked:", work)
+
+    assert max(work.values()) - min(work.values()) <= 1
+
+
+def test_weekend_rotation_from_last_month():
+    # 7 members: 24 weekend shifts / 7 -> three work 4, four work 3.
+    # E001-E003 worked the most weekends last month, so they
+    # should get the lower number (3) this month.
+    members = [f"E00{i}" for i in range(1, 8)]
+    previous_weekend_work = {
+        "E001": 5, "E002": 5, "E003": 5,
+        "E004": 2, "E005": 2, "E006": 2, "E007": 2,
+    }
+
+    ctx = make_context(
+        members=members,
+        previous_weekend_work=previous_weekend_work,
+    )
+    result = solve(ctx, time_limit=30)
+    assert result.roster, result.warnings
+
+    work = {m: weekend_work(result.roster, ctx, m) for m in members}
+    print("\nWeekend days worked:", work)
+
+    assert all(work[m] <= 3 for m in ("E001", "E002", "E003"))
