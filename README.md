@@ -11,11 +11,14 @@ Rosters are built by a **constraint solver** (Google OR-Tools CP-SAT): the team 
 - **Constraint-based roster generation** (OR-Tools CP-SAT)
   - Hard rules are always met (coverage, C-shift limits, rest rules, weekend and G limits, previous-month history)
   - Member requests are honoured unless a hard rule makes that impossible; the ones that had to be dropped are listed
-  - Fair distribution: C shifts in one run per person and spread evenly, balanced A/B shifts, 2–3 weekly offs per 7 days, offs kept in pairs
+  - The team lead chooses how many people are on C (night shift) on weekdays and on weekends (1–3 each)
+  - Fair distribution: C shifts spread evenly and kept in runs, weekend work shared evenly, two days off after a run of C shifts, balanced A/B shifts, 2–3 weekly offs per 7 days, offs kept in pairs
+  - Fairness across months: whoever had more C shifts or worked more weekends last month gets fewer this month
+  - Long leave (7+ days in a row) keeps weekly offs: 5 days L, then 2 days W, repeated
 - **Multiple groups**: each member belongs to one group; rosters, history and Excel files are per group
 - **Final rule check** before saving; a generated roster that breaks a rule is never saved
 - **Excel download** in the official roster format (colours, per-member totals, daily counts, legend)
-- **Excel upload** of edited or existing rosters (creates or overwrites)
+- **Excel upload** of edited or existing rosters (creates or overwrites); blank days, such as after an employee's last day, download as black cells
 - **Roster delete** with confirmation
 - **Team and group management**: add, move and deactivate members; add, rename, activate and deactivate groups
 - FastAPI Swagger/OpenAPI documentation
@@ -242,9 +245,11 @@ The group number is fixed once created, because roster names and Excel files ref
 
 ## Create a monthly roster
 
-In **Create Monthly Roster**, choose the month, year, group and number of public holidays, then enter each member's requests as comma-separated days (for example `2,5,8`) under the shift they want (A, B, C, G, L or W).
+In **Create Monthly Roster**, choose the month, year, group, number of public holidays, and how many people should be on C on weekdays and on weekends (1–3 each, default 1). Then enter each member's requests as comma-separated days (for example `2,5,8`) under the shift they want (A, B, C, G, L or W).
 
-The frontend checks for invalid days, days outside the month and the same day under two shifts. The backend validates the request and the group, runs the solver (up to 60 seconds), checks the result against every hard rule, and saves it.
+A leave of 7 or more days in a row keeps the usual weekly offs: it becomes 5 days L, then 2 days W, repeated, with the same total length. The page lists which leave days became W.
+
+The frontend checks for invalid days, days outside the month and the same day under two shifts. The backend validates the request, the group and whether the group has enough members for the chosen number on C, runs the solver (up to 60 seconds), checks the result against every hard rule, and saves it.
 
 After generation, the page shows any requests that could not be met, for example *"Geetanjali Chivukula: B shift on 4 Aug 2026 could not be given."*
 
@@ -264,6 +269,8 @@ In **Download / Upload / Delete Roster**, choose the month, year and group (inac
 
 > Uploaded rosters are not checked against the scheduling rules. They are saved as they are and used as history for the next month.
 
+> Blank cells in an uploaded roster (for example the days after an employee's last working day, shown black in the official sheet) are skipped, and download again as black cells.
+
 ---
 
 # How Roster Generation Works
@@ -282,8 +289,9 @@ In **Download / Upload / Delete Roster**, choose the month, year and group (inac
 
 ## Hard rules (always met)
 
-- At least 1 member in A, B and C every day, and exactly 1 in C
-- Each member does 3–5 C shifts per month
+- At least 1 member in A and B every day
+- Exactly the chosen number of members in C every day (1–3, set separately for weekdays and weekends)
+- Each member's C shifts stay within their fair share ± 1, worked out each month (e.g. 54 C shifts over 8 members → 5–8 each)
 - The day after a C shift is C or a day off
 - At most 5 working days in a row
 - Each member gets exactly as many W as the month has weekend days, and as many H as the public holidays entered
@@ -296,13 +304,13 @@ In **Download / Upload / Delete Roster**, choose the month, year and group (inac
 The solver works in four phases. Each phase locks in its result, so a later phase can never undo an earlier one.
 
 1. **Requests and leave**: meet member requests; give L only when requested or unavoidable. When requests must be broken, the solver breaks as few as possible and picks at random between equal options.
-2. **C shifts**: one consecutive run of C per member, spread evenly across the team.
-3. **Fairness**: balanced A/B shifts per member, 2–3 W in every 7 days, W kept in pairs, one member per shift on weekends where possible.
+2. **C shifts**: spread evenly across the team, kept in runs, and rotated: whoever had more C last month gets fewer this month.
+3. **Fairness**: weekend work shared evenly and rotated from last month, balanced A/B shifts per member, 2–3 W in every 7 days, two days off after a run of C shifts, one member per shift on weekends where possible, W kept in pairs.
 4. **Polish**: equal A and B each day with any odd person on G, at least 2 in A and B on weekdays, as few shift switches as possible.
 
 ## Team size
 
-Every day needs exactly one C shift and each member does 3–5 C shifts, so a group needs **7–10 active members** for a 31-day month (6–10 for 30 days, 6–9 for 28–29 days). Outside this range no valid roster exists and the app explains why.
+Every day needs the chosen number of people on C plus at least 1 in A and 1 in B, so a group needs at least (C people + 2) members; the app checks this before solving. In practice, with 1 on C, **7–10 active members** work well; with 2–3 on C, more members are needed because of the rest rules. If no valid roster exists, the app says so and suggests fewer people on C or more members.
 
 ## Configuration
 
@@ -311,8 +319,11 @@ Rule limits live in `backend/app/scheduler/config.py`:
 | Setting | Default | Meaning |
 |---|---|---|
 | `MAX_CONTINUOUS_WORKING_DAYS` | 5 | Max working days in a row |
-| `MIN_C_PER_MEMBER` / `MAX_C_PER_MEMBER` | 3 / 5 | C shifts per member per month |
-| `MAX_C_PER_DAY` | 1 | Members in C per day |
+| `DEFAULT_C_PER_WEEKDAY` / `DEFAULT_C_PER_WEEKEND` | 1 / 1 | Default number of members on C per day |
+| `MIN_C_PER_DAY` / `MAX_C_PER_DAY` | 1 / 3 | Allowed range for the number on C per day |
+| `C_SHARE_TOLERANCE` | 1 | How far a member's C count may be from the fair share |
+| `LONG_LEAVE_MIN_DAYS` | 7 | Leave length (days in a row) that keeps weekly offs |
+| `LONG_LEAVE_L_DAYS` / `LONG_LEAVE_W_DAYS` | 5 / 2 | Long-leave pattern: days of L, then days of W |
 | `MAX_G_PER_MEMBER` | 4 | G shifts per member per month |
 | `WEEKEND_MAX_PER_SHIFT` | 2 | Max members per shift on weekends |
 | `SOLVER_TIME_LIMIT_SECONDS` | 60 | Max time per generation |
@@ -386,7 +397,7 @@ Or locally from `backend/` (with the dependencies installed):
 python3 -m pytest tests/test_cp_solver.py
 ```
 
-The suite checks every hard rule, previous-month history, request handling and relaxation, and the soft rules. It takes about 2–3 minutes because each test runs the solver.
+The suite checks every hard rule, previous-month history, request handling and relaxation, the C and weekend settings, long leave, rotation from last month, and the soft rules. It takes about 3–4 minutes because each test runs the solver.
 
 ---
 
@@ -463,7 +474,7 @@ Useful commands: `\dt` (list tables), `\d groups`, `\d team_members`, `\d roster
 
 **Database tables missing:** run `docker compose exec backend alembic upgrade head`.
 
-**"Roster could not be generated"**: usually the group has too few or too many active members for the month (see [Team size](#team-size)).
+**"Roster could not be generated"**: usually the group has too few active members for the month or for the chosen number of people on C (see [Team size](#team-size)). Try fewer people on C or add members.
 
 **Upload fails with "not a member of group"**: the names in the Excel file must match members of the selected group (capitals and extra spaces are ignored).
 
