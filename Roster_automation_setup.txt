@@ -1,47 +1,44 @@
-ROSTER AUTOMATION - SETUP STEPS (WINDOWS)
-==========================================
+ROSTER AUTOMATION - SETUP STEPS (WINDOWS & MAC)
+================================================
 
-1. DOWNLOAD AND UNZIP THE PROJECT FROM GITHUB
----------------------------------------------
-- Open the project's GitHub page and click the green "Code" button, then "Download ZIP".
-- Right-click the ZIP and choose "Extract All". Pick a location such as your Desktop.
-- Open the extracted "roster-automation-main" folder in PowerShell.
+The Docker commands are the same on both systems. Only installing the
+prerequisites, opening the terminal, and the optional venv are different.
 
 
-2. INSTALL PYTHON
+PART A - PREREQUISITES
+======================
+
+1. INSTALL PYTHON
 -----------------
+WINDOWS (PowerShell)
 - Check whether it's installed:
     python --version
-  You had Python 3.13 earlier, so you can skip this if you see a version number.
+  If you see a version number, skip this step.
 
 - If it's missing:
     winget install --id Python.Python.3.13 -e --source winget
 
   Open a new PowerShell window and run "python --version" to confirm.
 
+MAC (Terminal)
+- Check whether it's installed:
+    python3 --version
+  If you see 3.10 or newer, skip this step.
 
-3. CREATE AND ACTIVATE THE VENV
--------------------------------
-- The venv isn't included in GitHub downloads, so create it from the project folder:
-    python -m venv venv
+- If it's missing, install Homebrew (the Mac package manager) if you don't already have it:
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  At the end, Homebrew prints "Next steps" commands that add it to your PATH. Run them.
 
-- Activate it:
-    .\venv\Scripts\Activate.ps1
+- Then install Python:
+    brew install python@3.13
 
-  The prompt should start with (venv). If you get a "scripts are disabled" error, run this once and try again:
-    Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-
-- Install the project's Python packages:
-    pip install -r backend\requirements.txt
-
-
-4. GIT (OPTIONAL)
------------------
-- Skipped. The project doesn't need it to run.
+  Open a new Terminal window and run "python3 --version" to confirm.
+  On Mac, use "python3" and "pip3". Plain "python" may not exist.
 
 
-5. INSTALL DOCKER DESKTOP
+2. INSTALL DOCKER DESKTOP
 -------------------------
+WINDOWS (needs WSL)
 - Install it with:
     winget install --id Docker.DockerDesktop -e --source winget
 
@@ -49,33 +46,102 @@ ROSTER AUTOMATION - SETUP STEPS (WINDOWS)
     wsl --install
 
 - Restart your computer. When Ubuntu opens, create a Linux username and password. The metrics prompt is optional.
+
+MAC (no WSL needed)
+- Install it with Homebrew:
+    brew install --cask docker-desktop
+
+  Or download it from docker.com. Pick "Apple Silicon" for M1/M2/M3/M4 Macs or "Intel" for older Macs
+  (check under Apple menu > About This Mac). Drag Docker into Applications.
+
+- Open Docker from Applications and approve the permission prompts.
+
+BOTH
 - You don't need a Docker account to run the project.
 
-
-6. CHECK DOCKER
----------------
-- Once Docker Desktop shows "Engine running", run:
+- Once Docker Desktop shows "Engine running", check it with:
     docker --version
     docker run hello-world
     docker compose version
 
-- If hello-world fails with a pipe error, the engine isn't ready yet. Wait a bit and try again.
+- If hello-world fails with a pipe error (Windows) or "Cannot connect to the Docker daemon" (Mac),
+  the engine isn't ready yet. Wait a bit and try again.
 
 
-7. RUN THE PROJECT
-------------------
-- From the project folder:
-    docker compose up --build
+3. GET THE PROJECT (GIT IS OPTIONAL)
+------------------------------------
+- Git isn't required. You can download the repository straight from GitHub:
+    - Open the project's GitHub page and click the green "Code" button, then "Download ZIP".
+    - Windows: right-click the ZIP and choose "Extract All". Pick a location such as your Desktop.
+    - Mac: double-click the ZIP and it unzips in the same folder.
+
+- If you have Git installed, you can clone the repository instead.
+  (On Mac, Git usually comes with the Xcode Command Line Tools. Running "git --version" offers to install it.)
 
 
-8. RUN THE DATABASE MIGRATIONS
-------------------------------
-- With the containers running, open a second PowerShell window in the project folder and run:
+PART B - LAUNCH AND RUN THE APPLICATION
+=======================================
+
+4. OPEN THE PROJECT IN A TERMINAL
+---------------------------------
+WINDOWS
+- After the prerequisites are done, right-click the extracted "roster-automation-main" folder and choose "Open in Terminal".
+
+MAC
+- Open Terminal, type "cd " (with a space at the end), drag the "roster-automation-main" folder into the
+  Terminal window, and press Enter.
+- Or right-click the folder in Finder and choose Services > "New Terminal at Folder".
+  (If you don't see it, turn it on in System Settings > Keyboard > Keyboard Shortcuts > Services.)
+
+
+5. LAUNCH THE APPLICATION (SAME ON BOTH)
+----------------------------------------
+- Make sure Docker Desktop shows "Engine running", then run:
+    docker compose up -d
+
+  The -d flag runs the containers in the background, so the terminal stays free.
+  The first run takes a few minutes while the images are built.
+
+
+6. RUN THE DATABASE MIGRATIONS (ONE TIME ONLY, DURING SETUP)
+------------------------------------------------------------
+- With the containers running, run this to set up the database:
     docker compose exec backend alembic upgrade head
 
 
-9. CHECK THE POSTGRES DATABASE
-------------------------------
+7. OPEN THE APP
+---------------
+- In your browser, go to:
+    http://localhost:5173/
+
+
+PART C - OPTIONAL / TROUBLESHOOTING
+===================================
+
+8. PYTHON VENV (OPTIONAL - ONLY FOR LOCAL DEVELOPMENT OUTSIDE DOCKER)
+---------------------------------------------------------------------
+- Docker runs the whole application, so you don't need this to use the app.
+- The venv isn't included in GitHub downloads, so create it from the project folder.
+
+WINDOWS
+    python -m venv venv
+    .\venv\Scripts\Activate.ps1
+    pip install -r backend\requirements.txt
+
+  If you get a "scripts are disabled" error when activating, run this once and try again:
+    Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+
+MAC
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -r backend/requirements.txt
+
+BOTH
+- After activating, the prompt should start with (venv). Run "deactivate" to leave it.
+
+
+9. CHECK THE POSTGRES DATABASE (SAME ON BOTH)
+---------------------------------------------
 - Open the database shell:
     docker compose exec postgres psql -U postgres -d roster_db
 
@@ -89,11 +155,19 @@ ROSTER AUTOMATION - SETUP STEPS (WINDOWS)
     docker compose exec postgres psql -U postgres -d roster_db -c "\dt"
 
 
-DAILY USE
----------
+10. VIEW LOGS (SAME ON BOTH)
+----------------------------
+- Because the app runs in the background (-d), its logs don't show in the terminal. To see them:
+    docker compose logs -f
+  Press Ctrl+C to stop watching. The app keeps running.
+
+
+DAILY USE (SAME ON BOTH)
+========================
 - Open Docker Desktop and wait for "Engine running".
-- Activate the venv if you need it, then run:
-    docker compose up
-  Add --build only after code changes.
-- Stop with Ctrl+C, or run:
+- Open a terminal in the project folder (see step 4), then run:
+    docker compose up -d
+  Use "docker compose up -d --build" only after code changes.
+- Open http://localhost:5173/ in your browser.
+- To stop the app:
     docker compose down
